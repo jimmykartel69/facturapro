@@ -7,9 +7,11 @@ services:
       npm i -g bun &&
       bun install &&
       bunx prisma migrate deploy &&
-      next build &&
+      bunx prisma generate &&
+      bunx next build &&
       mkdir -p .next/standalone/node_modules/pdfkit/js &&
       cp -r node_modules/pdfkit/js/data .next/standalone/node_modules/pdfkit/js/data &&
+      mkdir -p .next/standalone/.next &&
       cp -r .next/static .next/standalone/.next/ &&
       cp -r public .next/standalone/ &&
       cp -r prisma .next/standalone/prisma
