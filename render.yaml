@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: facturapro
+    runtime: node
+    plan: free
+    buildCommand: bun run build
+    startCommand: bun run start
+    envVars:
+      - key: HOSTNAME
+        value: 0.0.0.0
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: facturapro-db
+          property: connectionString
+  - type: pserv
+    name: facturapro-db
+    plan: free
+    envVars:
+      - key: PGUSER
+        value: postgres
+      - key: PGHOST
+        value: localhost
+      - key: PGPORT
+        value: 5432
+      - key: PGDATABASE
+        value: facturapro
+      - key: PGPASSWORD
+        generateValue: true
