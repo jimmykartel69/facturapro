@@ -9,10 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { useAppStore } from '@/lib/store';
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const login = useAppStore((s) => s.login);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,19 +28,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Erreur lors de la connexion');
+      const err = await login(email, password);
+      if (err) {
+        setError(err);
         toast({
           title: 'Erreur',
-          description: data.error || 'Erreur lors de la connexion',
+          description: err,
           variant: 'destructive',
         });
         return;

@@ -17,10 +17,12 @@ import {
   User,
   Building2,
 } from 'lucide-react';
+import { useAppStore } from '@/lib/store';
 
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const register = useAppStore((s) => s.register);
 
   const [firstName, setFirstName] = useState('');
   const [name, setName] = useState('');
@@ -69,31 +71,18 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const body: Record<string, string> = {
-        firstName: firstName.trim(),
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        password,
-      };
+      const err = await register(
+        name.trim(),
+        firstName.trim(),
+        email.trim().toLowerCase(),
+        password
+      );
 
-      if (companyName.trim()) {
-        body.companyName = companyName.trim();
-      }
-
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const message = data.error || "Erreur lors de l'inscription";
-        setErrors({ form: message });
+      if (err) {
+        setErrors({ form: err });
         toast({
           title: 'Erreur',
-          description: message,
+          description: err,
           variant: 'destructive',
         });
         return;

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password'];
-const PUBLIC_API_PREFIXES = [
+const PUBLIC_PATHS = [
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
+  '/api/auth/session', // MUST be public to avoid infinite recursion
 ];
 
 function isAuthPage(pathname: string): boolean {
@@ -14,13 +15,18 @@ function isAuthPage(pathname: string): boolean {
   );
 }
 
-function isPublicApi(pathname: string): boolean {
-  return PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PATHS.some((prefix) => pathname.startsWith(prefix));
 }
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('facturapro_session')?.value;
+
+  // --- Public endpoints (auth APIs): always pass through ---
+  if (isPublicPath(pathname)) {
+    return NextResponse.next();
+  }
 
   // --- Auth pages: redirect authenticated users to / ---
   if (isAuthPage(pathname)) {
@@ -43,12 +49,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // --- Public API endpoints: always pass through ---
-  if (isPublicApi(pathname)) {
+  // --- API routes: just check cookie existence (each route validates via getCurrentUser) ---
+  if (pathname.startsWith('/api/')) {
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
     return NextResponse.next();
   }
 
-  // --- All remaining routes require authentication ---
+  // --- All other page routes: require valid session ---
   if (!sessionCookie) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
