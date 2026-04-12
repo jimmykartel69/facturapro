@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Auth pages (these show their own login/register UI)
 const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password'];
-const PUBLIC_PATHS = [
+
+// Public API routes (no auth required)
+const PUBLIC_API_PREFIXES = [
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
-  '/api/auth/session', // MUST be public to avoid infinite recursion
+  '/api/auth/session',
 ];
 
 function isAuthPage(pathname: string): boolean {
@@ -15,41 +18,21 @@ function isAuthPage(pathname: string): boolean {
   );
 }
 
-function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.some((prefix) => pathname.startsWith(prefix));
+function isPublicApi(pathname: string): boolean {
+  return PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('facturapro_session')?.value;
 
-  // --- Public endpoints (auth APIs): always pass through ---
-  if (isPublicPath(pathname)) {
+  // Public auth API routes: always pass through
+  if (isPublicApi(pathname)) {
     return NextResponse.next();
   }
 
-  // --- Auth pages: redirect authenticated users to / ---
-  if (isAuthPage(pathname)) {
-    if (sessionCookie) {
-      try {
-        const sessionRes = await fetch(
-          new URL('/api/auth/session', request.url),
-          {
-            headers: { cookie: request.headers.get('cookie') || '' },
-          }
-        );
-        const sessionData = await sessionRes.json();
-        if (sessionData.user) {
-          return NextResponse.redirect(new URL('/', request.url));
-        }
-      } catch {
-        // Session invalid → allow access to auth page
-      }
-    }
-    return NextResponse.next();
-  }
-
-  // --- API routes: just check cookie existence (each route validates via getCurrentUser) ---
+  // Protected API routes: require session cookie
+  // (each route handler validates the session fully via getCurrentUser)
   if (pathname.startsWith('/api/')) {
     if (!sessionCookie) {
       return NextResponse.json(
@@ -60,26 +43,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // --- All other page routes: require valid session ---
-  if (!sessionCookie) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  try {
-    const sessionRes = await fetch(
-      new URL('/api/auth/session', request.url),
-      {
-        headers: { cookie: request.headers.get('cookie') || '' },
-      }
-    );
-    const sessionData = await sessionRes.json();
-    if (!sessionData.user) {
-      return NextResponse.redirect(new URL('/login', request.url));
+  // Auth pages: if user has a cookie, redirect to app
+  if (isAuthPage(pathname)) {
+    if (sessionCookie) {
+      return NextResponse.redirect(new URL('/', request.url));
     }
-  } catch {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.next();
   }
 
+  // All other page routes: let through
+  // Client-side Zustand + fetchSession() handles auth state
   return NextResponse.next();
 }
 
