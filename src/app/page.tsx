@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Menu, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, Component, type ReactNode } from 'react';
+import { Menu, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,52 @@ import { DevisDetail } from '@/components/facturapro/devis-detail';
 import { DevisForm } from '@/components/facturapro/devis-form';
 import { SettingsPage } from '@/components/facturapro/settings';
 import { cn } from '@/lib/utils';
+
+// --- Error Boundary to catch rendering crashes ---
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('ErrorBoundary caught:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) return this.props.fallback;
+      return (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <AlertTriangle className="w-12 h-12 text-amber-500 mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Une erreur est survenue</h3>
+          <p className="text-sm text-muted-foreground mb-4 max-w-md">
+            {this.state.error?.message || 'Erreur inconnue'}
+          </p>
+          <Button variant="outline" onClick={() => this.setState({ hasError: false, error: null })}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Réessayer
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function LoginPage() {
   const { login, register } = useAppStore();
@@ -180,7 +226,9 @@ function AuthenticatedApp() {
         </header>
 
         <div className="p-4 sm:p-6 lg:p-8 pt-16 lg:pt-8">
-          {renderCurrentPage()}
+          <ErrorBoundary>
+            {renderCurrentPage()}
+          </ErrorBoundary>
         </div>
       </main>
 

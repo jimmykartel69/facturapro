@@ -42,7 +42,6 @@ export function Dashboard() {
     setSelectedDevisId,
     setSelectedInvoiceId,
     setPage,
-    isAuthenticated,
   } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,9 +60,7 @@ export function Dashboard() {
         }
       });
     return () => { fetchIdRef.current++; };
-  }, [fetchDashboard, isAuthenticated]);
-
-  if (!isAuthenticated) return null;
+  }, [fetchDashboard]);
 
   if (loading) {
     return (
