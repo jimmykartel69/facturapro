@@ -6,7 +6,7 @@ import { createSessionCookie } from '@/lib/session';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, firstName, email, password } = body;
+    const { name, firstName, email, password, companyName } = body;
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
         firstName: firstName || '',
         email: email.toLowerCase(),
         passwordHash,
+        companyName: companyName || null,
         sessionToken,
         sessionExpiry,
       },

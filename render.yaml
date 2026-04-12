@@ -3,7 +3,7 @@ services:
     name: facturapro
     runtime: node
     plan: free
-    buildCommand: curl -fsSL https://bun.sh/install | bash && bun install && bun run build
+    buildCommand: npm i -g bun && bun install && bunx prisma migrate deploy && bun run build
     startCommand: bun run start
     envVars:
       - key: HOSTNAME
