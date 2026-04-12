@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
-import { generateInvoicePDF } from '@/lib/pdf/invoice-pdf';
+import { generateInvoicePDF } from '@/lib/pdf';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

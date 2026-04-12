@@ -440,31 +440,26 @@ function drawTotals(ctx: Ctx): void {
 
 const totalHt = ctx.items.reduce((a, i) => a + (i.quantity || 0) * (i.unitPrice || 0), 0);
 
-  // TVA details
-// 🔥 recalcul TVA APRES remise
-const tvaMap = new Map<number, number>();
-
-if (!ctx.ae) {
-  ctx.items.forEach((i) => {
-    const lineHt = (i.quantity || 0) * (i.unitPrice || 0);
-
-    // 🔥 appliquer remise proportionnelle
-    	const ratio = totalHt > 0 ? netHt / totalHt : 1;
-	const lineHtAfterDiscount = lineHt * ratio;
-
-    const tva = lineHtAfterDiscount * ((i.tvaRate || 0) / 100);
-
-    tvaMap.set(i.tvaRate || 0, (tvaMap.get(i.tvaRate || 0) || 0) + tva);
-  });
-}
-  const totalTva = Array.from(tvaMap.values()).reduce((a, v) => a + v, 0);
-
-
-let discount = 0;
-if (ctx.globalDiscount > 0) {
-  discount = totalHt * (ctx.globalDiscount / 100);
-}
+  // Discount first
+  let discount = 0;
+  if (ctx.globalDiscount > 0) {
+    discount = totalHt * (ctx.globalDiscount / 100);
+  }
   const netHt = totalHt - discount;
+
+  // TVA details — calculated on net HT after discount
+  const tvaMap = new Map<number, number>();
+
+  if (!ctx.ae) {
+    ctx.items.forEach((i) => {
+      const lineHt = (i.quantity || 0) * (i.unitPrice || 0);
+      const ratio = totalHt > 0 ? netHt / totalHt : 1;
+      const lineHtAfterDiscount = lineHt * ratio;
+      const tva = lineHtAfterDiscount * ((i.tvaRate || 0) / 100);
+      tvaMap.set(i.tvaRate || 0, (tvaMap.get(i.tvaRate || 0) || 0) + tva);
+    });
+  }
+  const totalTva = Array.from(tvaMap.values()).reduce((a, v) => a + v, 0);
   const totalTtc = netHt + totalTva;
 
   // Total HT
