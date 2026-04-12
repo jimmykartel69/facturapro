@@ -3,8 +3,8 @@ services:
     name: facturapro
     runtime: node
     plan: free
-    buildCommand: npm i -g bun && bun install && bunx prisma migrate deploy && bun run build
-    startCommand: bun run start
+    buildCommand: npm i -g bun && bun install && bunx prisma migrate deploy && bun run build && cp -r node_modules/pdfkit/js/data .next/standalone/node_modules/pdfkit/js/data
+    startCommand: node .next/standalone/server.js
     envVars:
       - key: HOSTNAME
         value: 0.0.0.0
