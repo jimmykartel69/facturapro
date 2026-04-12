@@ -107,7 +107,8 @@ model Devis {
 model DevisItem {
   id          String   @id @default(cuid())
   devisId     String
-  description String
+  designation String
+  description String?
   quantity    Float
   unit        String   @default("unité")
   unitPrice   Float
@@ -145,7 +146,8 @@ model Invoice {
 model InvoiceItem {
   id          String   @id @default(cuid())
   invoiceId   String
-  description String
+  designation String
+  description String?
   quantity    Float
   unit        String   @default("unité")
   unitPrice   Float

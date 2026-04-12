@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         },
         items: {
           select: {
+            designation: true,
             description: true,
             quantity: true,
             unit: true,
@@ -80,8 +81,9 @@ export async function POST(request: NextRequest) {
         notes: notes || null,
         globalDiscount: globalDiscount || 0,
         items: {
-          create: items.map((item: { description: string; quantity: number; unit: string; unitPrice: number; tvaRate: number }) => ({
-            description: item.description,
+          create: items.map((item: { designation: string; description?: string; quantity: number; unit: string; unitPrice: number; tvaRate: number }) => ({
+            designation: item.designation,
+            description: item.description || null,
             quantity: item.quantity,
             unit: item.unit || 'unité',
             unitPrice: item.unitPrice,

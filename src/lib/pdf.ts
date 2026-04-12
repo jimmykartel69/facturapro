@@ -348,7 +348,10 @@ function drawTableHeader(ctx: Ctx, cols: ReturnType<typeof getColWidths>): void 
 
 function drawTableRow(ctx: Ctx, item: DevisItem | InvoiceItem, cols: ReturnType<typeof getColWidths>, idx: number): void {
   const { doc } = ctx;
-  const rh = rowHeight(doc, item.description || '', cols.desc);
+  const desigText = item.designation || '';
+  const descText = item.description || '';
+  const combinedText = desigText + (desigText && descText ? '\n' : '') + descText;
+  const rh = rowHeight(doc, combinedText, cols.desc);
 
   ensureSpace(ctx, rh);
 
@@ -364,8 +367,18 @@ function drawTableRow(ctx: Ctx, item: DevisItem | InvoiceItem, cols: ReturnType<
   const pad = 6;
   let cx = MG;
 
-  doc.font('Helvetica').fontSize(8.5).fillColor(C.text);
-  doc.text(item.description || '', cx + pad, ctx.y + 6, { width: cols.desc - pad * 2 });
+  // Description column: designation (bold) + description (normal)
+  const textX = cx + pad;
+  const textW = cols.desc - pad * 2;
+  if (desigText) {
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.text);
+    doc.text(desigText, textX, ctx.y + 6, { width: textW });
+  }
+  if (descText) {
+    const desigHeight = desigText ? doc.heightOfString(desigText, { width: textW }) : 0;
+    doc.font('Helvetica').fontSize(7.5).fillColor(C.textSec);
+    doc.text(descText, textX, ctx.y + 6 + desigHeight + 1, { width: textW });
+  }
   cx += cols.desc;
 
   doc.text(String(item.quantity ?? 0), cx + pad, ctx.y + 6, { width: cols.qty - pad * 2, align: 'center' });

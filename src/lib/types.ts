@@ -34,7 +34,8 @@ export interface ClientWithCounts extends Client {
 
 export interface DevisItem {
   id?: string;
-  description: string;
+  designation: string;
+  description?: string;
   quantity: number;
   unit: string;
   unitPrice: number;
@@ -57,7 +58,8 @@ export interface Devis {
 
 export interface InvoiceItem {
   id?: string;
-  description: string;
+  designation: string;
+  description?: string;
   quantity: number;
   unit: string;
   unitPrice: number;

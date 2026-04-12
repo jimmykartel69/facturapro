@@ -222,22 +222,24 @@ export function DevisDetail() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Description</TableHead>
+                <TableHead>Désignation</TableHead>
+                <TableHead className="hidden sm:table-cell">Description</TableHead>
                 <TableHead className="text-right">Qté</TableHead>
-                <TableHead>Unité</TableHead>
+                <TableHead className="hidden sm:table-cell">Unité</TableHead>
                 <TableHead className="text-right">P.U. HT</TableHead>
-                <TableHead className="text-right">TVA</TableHead>
+                <TableHead className="hidden sm:table-cell text-right">TVA</TableHead>
                 <TableHead className="text-right">Total HT</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {devis.items.map((item, idx) => (
                 <TableRow key={idx}>
-                  <TableCell className="text-sm">{item.description}</TableCell>
+                  <TableCell className="text-sm font-medium">{item.designation || item.description || '-'}</TableCell>
+                  <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{item.description || '-'}</TableCell>
                   <TableCell className="text-right text-sm">{item.quantity}</TableCell>
-                  <TableCell className="text-sm">{item.unit}</TableCell>
+                  <TableCell className="hidden sm:table-cell text-sm">{item.unit}</TableCell>
                   <TableCell className="text-right text-sm">{formatCurrency(item.unitPrice)}</TableCell>
-                  <TableCell className="text-right text-sm">{item.tvaRate}%</TableCell>
+                  <TableCell className="hidden sm:table-cell text-right text-sm">{item.tvaRate}%</TableCell>
                   <TableCell className="text-right text-sm font-medium">{formatCurrency(item.quantity * item.unitPrice)}</TableCell>
                 </TableRow>
               ))}

@@ -69,8 +69,9 @@ export async function PUT(
         ...(body.globalDiscount !== undefined && { globalDiscount: body.globalDiscount }),
         ...(body.items && {
           items: {
-            create: body.items.map((item: { description: string; quantity: number; unit: string; unitPrice: number; tvaRate: number }) => ({
-              description: item.description,
+            create: body.items.map((item: { designation: string; description?: string; quantity: number; unit: string; unitPrice: number; tvaRate: number }) => ({
+              designation: item.designation,
+              description: item.description || null,
               quantity: item.quantity,
               unit: item.unit || 'unité',
               unitPrice: item.unitPrice,

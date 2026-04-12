@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
         globalDiscount: devis.globalDiscount,
         items: {
           create: devis.items.map((item) => ({
+            designation: item.designation,
             description: item.description,
             quantity: item.quantity,
             unit: item.unit,
