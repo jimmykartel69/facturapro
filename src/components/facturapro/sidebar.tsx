@@ -108,7 +108,7 @@ export function Sidebar() {
       {/* Desktop sidebar */}
       <aside
         className={`
-          hidden lg:flex flex-col h-screen sticky top-0
+          hidden lg:flex flex-col h-screen fixed left-0 top-0
           bg-[#1a1a2e] transition-all duration-300 ease-in-out z-30
           ${sidebarOpen ? 'w-64' : 'w-[72px]'}
         `}

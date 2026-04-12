@@ -61,6 +61,9 @@ interface AppState {
 
   updateSettings: (data: Record<string, unknown>) => Promise<string | null>;
 
+  // Internal helpers
+  handleAuthError: (res: Response) => boolean;
+
   // Navigation actions
   setPage: (page: Page) => void;
   toggleSidebar: () => void;
@@ -188,7 +191,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         dashboardData: null,
         settings: null,
       });
-      window.location.href = '/login';
+      // Don't redirect - let the SPA handle it via fetchSession
       return true;
     }
     return false;

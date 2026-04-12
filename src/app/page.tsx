@@ -215,7 +215,7 @@ function AuthenticatedApp() {
       <main
         className={cn(
           'transition-all duration-300 ease-in-out min-h-screen',
-          sidebarOpen ? 'lg:pl-64' : 'lg:pl-[72px]',
+          sidebarOpen ? 'lg:ml-64' : 'lg:ml-[72px]',
         )}
       >
         <header className="lg:hidden sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b px-4 py-3 flex items-center gap-3">
@@ -225,7 +225,7 @@ function AuthenticatedApp() {
           <h1 className="font-bold text-[#1a1a2e]">FacturaPro</h1>
         </header>
 
-        <div className="p-4 sm:p-6 lg:p-8 pt-16 lg:pt-8">
+        <div className="p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8">
           <ErrorBoundary>
             {renderCurrentPage()}
           </ErrorBoundary>

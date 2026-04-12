@@ -437,20 +437,51 @@ function SettingsForm({ settings }: { settings: Settings }) {
 export function SettingsPage() {
   const { settings, fetchSettings } = useAppStore();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const fetchIdRef = useRef(0);
 
   useEffect(() => {
     const id = ++fetchIdRef.current;
     fetchSettings().then(() => {
-      if (id === fetchIdRef.current) setLoading(false);
+      if (id === fetchIdRef.current) {
+        setLoading(false);
+        const s = useAppStore.getState().settings;
+        if (!s) setError('Erreur lors du chargement des paramètres');
+      }
     });
     return () => { fetchIdRef.current++; };
   }, [fetchSettings]);
 
-  if (loading || !settings) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !settings) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Paramètres</h2>
+          <p className="text-muted-foreground text-sm">Configurez votre espace de facturation</p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-muted-foreground mb-4">{error || 'Impossible de charger les paramètres'}</p>
+          <Button variant="outline" onClick={() => {
+            setLoading(true);
+            setError(null);
+            const id = ++fetchIdRef.current;
+            fetchSettings().then(() => {
+              if (id === fetchIdRef.current) {
+                setLoading(false);
+                const s = useAppStore.getState().settings;
+                if (!s) setError('Erreur lors du chargement des paramètres');
+              }
+            });
+          }}>Réessayer</Button>
+        </div>
       </div>
     );
   }
