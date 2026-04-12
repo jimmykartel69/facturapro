@@ -74,7 +74,7 @@ const PW = 595.28; // A4 width
 const PH = 841.89; // A4 height
 const MG = 45; // margin
 const CW = PW - 2 * MG; // content width
-const MAX_Y = PH - 60;
+const CONTENT_BOTTOM = FOOTER_Y - 12;
 const FOOTER_Y = PH - 38;
 
 // ═══════════════════════════════════════════════════════════════
@@ -153,9 +153,14 @@ function doNewPage(ctx: Ctx): void {
   ctx.doc.text(`${lbl} n\u00B0 ${ctx.docNumber}`, MG, 12, { width: CW * 0.5 });
 }
 
-function ensureSpace(ctx: Ctx, need: number): void {
-  if (ctx.y + need > MAX_Y) {
+function ensureSpace(ctx: Ctx, need: number, isTable = false): void {
+  if (ctx.y + need > CONTENT_BOTTOM) {
     doNewPage(ctx);
+
+    if (isTable) {
+      const cols = getColWidths(ctx.ae);
+      drawTableHeader(ctx, cols);
+    }
   }
 }
 
@@ -327,7 +332,7 @@ function drawTableHeader(ctx: Ctx, cols: ReturnType<typeof getColWidths>): void 
   const x = MG;
   const h = 24;
 
-  doc.rect(x, ctx.y, CW, h).fill(C.primary);
+  doc.roundedRect(x, ctx.y, CW, h, 3).fill(C.primary);
 
   doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.white);
   let cx = x;
@@ -351,9 +356,10 @@ function drawTableRow(ctx: Ctx, item: DevisItem | InvoiceItem, cols: ReturnType<
   const desigText = item.designation || '';
   const descText = item.description || '';
   const combinedText = desigText + (desigText && descText ? '\n' : '') + descText;
-  const rh = rowHeight(doc, combinedText, cols.desc);
+const rh = rowHeight(doc, combinedText, cols.desc);
 
-  ensureSpace(ctx, rh);
+// 🔥 important
+ensureSpace(ctx, rh, true);
 
   // Alternating stripe
   if (idx % 2 === 1) {
@@ -392,7 +398,9 @@ function drawTableRow(ctx: Ctx, item: DevisItem | InvoiceItem, cols: ReturnType<
     cx += cols.tva;
   }
 
-  const lineTotal = (item.quantity || 0) * (item.unitPrice || 0);
+  const q = Number(item.quantity || 0);
+  const pu = Number(item.unitPrice || 0);
+  const lineTotal = q * pu;
   doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.text);
   doc.text(fmtCur(lineTotal), cx + pad, ctx.y + 6, { width: cols.total - pad * 2, align: 'right' });
 
@@ -430,20 +438,31 @@ function drawTotals(ctx: Ctx): void {
     .strokeColor(C.border).lineWidth(0.5).stroke();
   ctx.y += 10;
 
-  const totalHt = ctx.items.reduce((a, i) => a + (i.quantity || 0) * (i.unitPrice || 0), 0);
+const totalHt = ctx.items.reduce((a, i) => a + (i.quantity || 0) * (i.unitPrice || 0), 0);
 
   // TVA details
-  const tvaMap = new Map<number, number>();
-  if (!ctx.ae) {
-    ctx.items.forEach((i) => {
-      const t = (i.quantity || 0) * (i.unitPrice || 0) * ((i.tvaRate || 0) / 100);
-      tvaMap.set(i.tvaRate || 0, (tvaMap.get(i.tvaRate || 0) || 0) + t);
-    });
-  }
+// 🔥 recalcul TVA APRES remise
+const tvaMap = new Map<number, number>();
+
+if (!ctx.ae) {
+  ctx.items.forEach((i) => {
+    const lineHt = (i.quantity || 0) * (i.unitPrice || 0);
+
+    // 🔥 appliquer remise proportionnelle
+    const lineHtAfterDiscount = lineHt * (netHt / totalHt);
+
+    const tva = lineHtAfterDiscount * ((i.tvaRate || 0) / 100);
+
+    tvaMap.set(i.tvaRate || 0, (tvaMap.get(i.tvaRate || 0) || 0) + tva);
+  });
+}
   const totalTva = Array.from(tvaMap.values()).reduce((a, v) => a + v, 0);
 
-  let discount = 0;
-  if (ctx.globalDiscount > 0) discount = totalHt * (ctx.globalDiscount / 100);
+
+let discount = 0;
+if (ctx.globalDiscount > 0) {
+  discount = totalHt * (ctx.globalDiscount / 100);
+}
   const netHt = totalHt - discount;
   const totalTtc = netHt + totalTva;
 
@@ -732,6 +751,8 @@ function buildDocument(
       // Footer on last page
       drawFooter(ctx);
 
+      // 🔥 sécurité : toujours finir proprement
+      doc.flushPages();
       doc.end();
     } catch (err) {
       doc.destroy();
