@@ -5,7 +5,7 @@ import { generateDevisPDF } from '@/lib/pdf';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getCurrentUser();
@@ -31,11 +31,13 @@ export async function GET(
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="devis-${devis.number}.pdf"`,
+        'Content-Disposition': `inline; filename="devis-${devis.number}.pdf"`,
+        'Content-Length': String(pdfBuffer.length),
       },
     });
   } catch (error) {
     console.error('Devis PDF error:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Erreur serveur';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

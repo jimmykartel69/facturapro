@@ -45,11 +45,24 @@ function formatDate(date: Date): string {
   }).format(date);
 }
 
+/** Safely write text — skips null/undefined/empty values */
+function safeText(
+  doc: PDFDocument,
+  text: string | null | undefined,
+  x: number,
+  y: number,
+  options?: Record<string, unknown>,
+): void {
+  if (text !== null && text !== undefined && text !== '') {
+    doc.text(String(text), x, y, options);
+  }
+}
+
 function addItemRows(
   doc: PDFDocument,
   items: (DevisItem | InvoiceItem)[],
   startY: number,
-  tableWidth: number
+  tableWidth: number,
 ): number {
   let y = startY;
   const colWidths = {
@@ -99,11 +112,11 @@ function addItemRows(
 
     doc.fillColor('#333333').font('Helvetica').fontSize(8);
     x = 50;
-    doc.text(item.description, x + 4, y + 5, { width: colWidths.description });
+    doc.text(item.description || '', x + 4, y + 5, { width: colWidths.description });
     x += colWidths.description;
-    doc.text(String(item.quantity), x + 4, y + 5, { width: colWidths.quantity, align: 'center' });
+    doc.text(String(item.quantity ?? 0), x + 4, y + 5, { width: colWidths.quantity, align: 'center' });
     x += colWidths.quantity;
-    doc.text(item.unit, x + 4, y + 5, { width: colWidths.unit, align: 'center' });
+    doc.text(item.unit || '', x + 4, y + 5, { width: colWidths.unit, align: 'center' });
     x += colWidths.unit;
     doc.text(formatCurrency(item.unitPrice), x + 4, y + 5, { width: colWidths.unitPrice, align: 'right' });
     x += colWidths.unitPrice;
@@ -122,7 +135,7 @@ function addTotals(
   items: (DevisItem | InvoiceItem)[],
   globalDiscount: number,
   startY: number,
-  tableWidth: number
+  tableWidth: number,
 ): number {
   let y = startY;
   const totalWidth = tableWidth * 0.4;
@@ -194,7 +207,7 @@ async function buildPDF(
   docNumber: string,
   issueDate: Date,
   extraDate?: Date,
-  devisNumber?: string | null
+  devisNumber?: string | null,
 ): Promise<Buffer> {
   const tableWidth = 495;
 
@@ -204,194 +217,196 @@ async function buildPDF(
     doc.on('end', () => resolve(Buffer.concat(buffers)));
     doc.on('error', reject);
 
-    // Page 1
-    doc.rect(0, 0, 595.28, 841.89).fill('#ffffff');
-    let y = 40;
+    try {
+      // Page 1
+      doc.rect(0, 0, 595.28, 841.89).fill('#ffffff');
+      let y = 40;
 
-    // Logo
-    if (company.logoBase64 && company.logoMimeType) {
-      try {
-        const logoData = Buffer.from(company.logoBase64, 'base64');
-        doc.image(logoData, 50, y, { fit: [120, 60], contaned: true });
-      } catch {
-        // Skip logo if it can't be rendered
+      // Logo
+      if (company.logoBase64 && company.logoMimeType) {
+        try {
+          const logoData = Buffer.from(company.logoBase64, 'base64');
+          if (logoData.length > 0) {
+            doc.image(logoData, 50, y, { fit: [120, 60] });
+            y = 80;
+          }
+        } catch {
+          // Skip logo if it can't be rendered
+        }
       }
-      y = 80;
-    }
 
-    // Company name
-    const companyName = company.companyName || `${company.firstName} ${company.name}`;
-    doc.font('Helvetica-Bold').fontSize(16).fillColor('#1a1a2e');
-    doc.text(companyName, 50, y);
-    y += 22;
+      // Company name
+      const companyName = company.companyName || `${company.firstName || ''} ${company.name || ''}`.trim() || 'Mon entreprise';
+      doc.font('Helvetica-Bold').fontSize(16).fillColor('#1a1a2e');
+      doc.text(companyName, 50, y);
+      y += 22;
 
-    // Company details
-    doc.font('Helvetica').fontSize(8).fillColor('#666666');
-    const companyDetails: string[] = [];
-    if (company.legalForm) companyDetails.push(company.legalForm);
-    if (company.address) companyDetails.push(company.address);
-    if (company.addressComplement) companyDetails.push(company.addressComplement);
-    if (company.postalCode || company.city) companyDetails.push(`${company.postalCode || ''} ${company.city || ''}`.trim());
-    if (company.phone) companyDetails.push(`Tél : ${company.phone}`);
-    if (company.professionalEmail) companyDetails.push(company.professionalEmail);
-    if (company.siret) companyDetails.push(`SIRET : ${company.siret}`);
-    if (company.tvaNumber) companyDetails.push(`TVA : ${company.tvaNumber}`);
-    if (company.rcsNumber) companyDetails.push(`RCS : ${company.rcsNumber}`);
-    if (company.socialCapital) companyDetails.push(`Capital : ${company.socialCapital}`);
-
-    companyDetails.forEach((line) => {
-      doc.text(line, 50, y);
-      y += 12;
-    });
-
-    // Document title on the right
-    const title = docType === 'devis' ? 'DEVIS' : 'FACTURE';
-    doc.font('Helvetica-Bold').fontSize(28).fillColor('#1a1a2e');
-    doc.text(title, 595.28 - 50 - tableWidth * 0.45, 40, { width: tableWidth * 0.45, align: 'right' });
-
-    // Document info
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#333333');
-    const infoX = 595.28 - 50 - tableWidth * 0.45;
-    let infoY = 80;
-    doc.text(`${docType === 'devis' ? 'N° de devis' : 'N° de facture'} :`, infoX, infoY, { width: tableWidth * 0.45, align: 'right' });
-    infoY += 14;
-    doc.font('Helvetica-Bold').fontSize(12);
-    doc.text(docNumber, infoX, infoY, { width: tableWidth * 0.45, align: 'right' });
-    infoY += 20;
-
-    doc.font('Helvetica').fontSize(9).fillColor('#666666');
-    doc.text(`Date : ${formatDate(issueDate)}`, infoX, infoY, { width: tableWidth * 0.45, align: 'right' });
-    infoY += 14;
-
-    if (extraDate) {
-      const extraLabel = docType === 'devis' ? 'Valide jusqu\'au' : 'Échéance';
-      doc.text(`${extraLabel} : ${formatDate(extraDate)}`, infoX, infoY, { width: tableWidth * 0.45, align: 'right' });
-      infoY += 14;
-    }
-
-    if (devisNumber) {
-      doc.text(`Réf. devis : ${devisNumber}`, infoX, infoY, { width: tableWidth * 0.45, align: 'right' });
-    }
-
-    // Client section
-    y = Math.max(y, 220);
-    doc.moveTo(50, y).lineTo(50 + tableWidth, y).strokeColor('#1a1a2e').lineWidth(1).stroke();
-    y += 10;
-
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#1a1a2e');
-    doc.text('CLIENT', 50, y);
-    y += 16;
-
-    doc.font('Helvetica').fontSize(9).fillColor('#333333');
-    const clientName = client.company || client.name;
-    doc.text(clientName, 50, y, { continued: false });
-    y += 13;
-    if (client.company) {
-      doc.text(client.name, 50, y);
-      y += 13;
-    }
-    if (client.address) {
-      doc.text(client.address, 50, y);
-      y += 13;
-    }
-    if (client.addressComplement) {
-      doc.text(client.addressComplement, 50, y);
-      y += 13;
-    }
-    if (client.postalCode || client.city) {
-      doc.text(`${client.postalCode || ''} ${client.city || ''}`.trim(), 50, y);
-      y += 13;
-    }
-    if (client.siret) {
-      doc.text(`SIRET : ${client.siret}`, 50, y);
-      y += 13;
-    }
-    if (client.email) {
-      doc.text(client.email, 50, y);
-      y += 13;
-    }
-
-    y += 16;
-
-    // Items table
-    y = addItemRows(doc, items, y, tableWidth);
-    y += 10;
-
-    // Totals
-    y = addTotals(doc, items, globalDiscount, y, tableWidth);
-
-    // Notes
-    if (company.customNotes) {
-      y += 4;
+      // Company details
       doc.font('Helvetica').fontSize(8).fillColor('#666666');
-      doc.text(company.customNotes, 50, y, { width: tableWidth });
-      y += 40;
-    }
+      const companyDetails: string[] = [];
+      if (company.legalForm) companyDetails.push(company.legalForm);
+      if (company.address) companyDetails.push(company.address);
+      if (company.addressComplement) companyDetails.push(company.addressComplement);
+      const cityLine = [company.postalCode || '', company.city || ''].join(' ').trim();
+      if (cityLine) companyDetails.push(cityLine);
+      if (company.phone) companyDetails.push(`Tel : ${company.phone}`);
+      if (company.professionalEmail) companyDetails.push(company.professionalEmail);
+      if (company.siret) companyDetails.push(`SIRET : ${company.siret}`);
+      if (company.tvaNumber) companyDetails.push(`TVA : ${company.tvaNumber}`);
+      if (company.rcsNumber) companyDetails.push(`RCS : ${company.rcsNumber}`);
+      if (company.socialCapital) companyDetails.push(`Capital : ${company.socialCapital}`);
 
-    // Payment conditions
-    if (docType === 'invoice') {
-      y += 4;
-      doc.moveTo(50, y).lineTo(50 + tableWidth, y).strokeColor('#dddddd').lineWidth(0.5).stroke();
-      y += 8;
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#333333');
-      doc.text('Conditions de paiement', 50, y);
-      y += 14;
-      doc.font('Helvetica').fontSize(8).fillColor('#666666');
-      doc.text(`Paiement à ${company.paymentTerms || '30 jours'}.`, 50, y);
-      y += 12;
-      if (company.latePenaltyRate) {
-        doc.text(
-          `En cas de retard de paiement, une pénalité de ${company.latePenaltyRate}% sera appliquée conformément à l'article L441-10 du Code de Commerce.`,
-          50, y, { width: tableWidth }
-        );
+      companyDetails.forEach((line) => {
+        doc.text(line, 50, y);
         y += 12;
+      });
+
+      // Document title on the right
+      const title = docType === 'devis' ? 'DEVIS' : 'FACTURE';
+      doc.font('Helvetica-Bold').fontSize(28).fillColor('#1a1a2e');
+      doc.text(title, 595.28 - 50 - tableWidth * 0.45, 40, { width: tableWidth * 0.45, align: 'right' });
+
+      // Document info
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#333333');
+      const infoX = 595.28 - 50 - tableWidth * 0.45;
+      let infoY = 80;
+      doc.text(`${docType === 'devis' ? 'N\u00B0 de devis' : 'N\u00B0 de facture'} :`, infoX, infoY, { width: tableWidth * 0.45, align: 'right' });
+      infoY += 14;
+      doc.font('Helvetica-Bold').fontSize(12);
+      doc.text(docNumber || '', infoX, infoY, { width: tableWidth * 0.45, align: 'right' });
+      infoY += 20;
+
+      doc.font('Helvetica').fontSize(9).fillColor('#666666');
+      doc.text(`Date : ${formatDate(issueDate)}`, infoX, infoY, { width: tableWidth * 0.45, align: 'right' });
+      infoY += 14;
+
+      if (extraDate) {
+        const extraLabel = docType === 'devis' ? "Valide jusqu'au" : 'Echeance';
+        doc.text(`${extraLabel} : ${formatDate(extraDate)}`, infoX, infoY, { width: tableWidth * 0.45, align: 'right' });
+        infoY += 14;
       }
-    }
 
-    // Signature zone for devis
-    if (docType === 'devis') {
-      y += 16;
-      doc.moveTo(50, y).lineTo(50 + tableWidth, y).strokeColor('#dddddd').lineWidth(0.5).stroke();
+      if (devisNumber) {
+        doc.text(`Ref. devis : ${devisNumber}`, infoX, infoY, { width: tableWidth * 0.45, align: 'right' });
+      }
+
+      // Client section
+      y = Math.max(y, 220);
+      doc.moveTo(50, y).lineTo(50 + tableWidth, y).strokeColor('#1a1a2e').lineWidth(1).stroke();
       y += 10;
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#333333');
-      doc.text('Bon pour accord', 50, y);
-      y += 14;
-      doc.font('Helvetica').fontSize(8).fillColor('#666666');
-      doc.text('Signature précédée de la mention "Bon pour accord"', 50, y);
-      y += 30;
-      doc.moveTo(50, y).lineTo(250, y).strokeColor('#999999').lineWidth(0.5).stroke();
-      doc.moveTo(350, y).lineTo(545, y).stroke();
-      y += 12;
-      doc.font('Helvetica').fontSize(8).fillColor('#999999');
-      doc.text('Date', 50, y);
-      doc.text('Signature', 350, y);
+
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#1a1a2e');
+      doc.text('CLIENT', 50, y);
+      y += 16;
+
+      doc.font('Helvetica').fontSize(9).fillColor('#333333');
+      const clientName = client.company || client.name || 'Client';
+      doc.text(clientName, 50, y, { continued: false });
+      y += 13;
+      if (client.company && client.name) {
+        safeText(doc, client.name, 50, y);
+        y += 13;
+      }
+      safeText(doc, client.address, 50, y);
+      y += 13;
+      safeText(doc, client.addressComplement, 50, y);
+      y += 13;
+      const clientCity = [client.postalCode || '', client.city || ''].join(' ').trim();
+      if (clientCity) {
+        doc.text(clientCity, 50, y);
+        y += 13;
+      }
+      if (client.siret) {
+        doc.text(`SIRET : ${client.siret}`, 50, y);
+        y += 13;
+      }
+      safeText(doc, client.email, 50, y);
+      y += 16;
+
+      // Items table
+      y = addItemRows(doc, items, y, tableWidth);
+      y += 10;
+
+      // Totals
+      y = addTotals(doc, items, globalDiscount, y, tableWidth);
+
+      // Notes
+      if (company.customNotes) {
+        y += 4;
+        doc.font('Helvetica').fontSize(8).fillColor('#666666');
+        doc.text(company.customNotes, 50, y, { width: tableWidth });
+        y += 40;
+      }
+
+      // Payment conditions (invoice only)
+      if (docType === 'invoice') {
+        y += 4;
+        doc.moveTo(50, y).lineTo(50 + tableWidth, y).strokeColor('#dddddd').lineWidth(0.5).stroke();
+        y += 8;
+        doc.font('Helvetica-Bold').fontSize(9).fillColor('#333333');
+        doc.text('Conditions de paiement', 50, y);
+        y += 14;
+        doc.font('Helvetica').fontSize(8).fillColor('#666666');
+        doc.text(`Paiement a ${company.paymentTerms || '30 jours'}.`, 50, y);
+        y += 12;
+        if (company.latePenaltyRate) {
+          doc.text(
+            `En cas de retard de paiement, une penalite de ${company.latePenaltyRate}% sera appliquee conformement a l'article L441-10 du Code de Commerce.`,
+            50, y, { width: tableWidth },
+          );
+          y += 12;
+        }
+      }
+
+      // Signature zone for devis
+      if (docType === 'devis') {
+        y += 16;
+        doc.moveTo(50, y).lineTo(50 + tableWidth, y).strokeColor('#dddddd').lineWidth(0.5).stroke();
+        y += 10;
+        doc.font('Helvetica-Bold').fontSize(9).fillColor('#333333');
+        doc.text('Bon pour accord', 50, y);
+        y += 14;
+        doc.font('Helvetica').fontSize(8).fillColor('#666666');
+        doc.text('Signature precedee de la mention "Bon pour accord"', 50, y);
+        y += 30;
+        doc.moveTo(50, y).lineTo(250, y).strokeColor('#999999').lineWidth(0.5).stroke();
+        doc.moveTo(350, y).lineTo(545, y).stroke();
+        y += 12;
+        doc.font('Helvetica').fontSize(8).fillColor('#999999');
+        doc.text('Date', 50, y);
+        doc.text('Signature', 350, y);
+      }
+
+      // Footer
+      const footerY = docType === 'devis' ? 750 : 730;
+      doc.font('Helvetica').fontSize(7).fillColor('#999999');
+      if (company.iban) {
+        let bankInfo = 'Coordonnees bancaires : ';
+        if (company.accountHolder) bankInfo += company.accountHolder + ' - ';
+        bankInfo += `IBAN : ${company.iban}`;
+        if (company.bic) bankInfo += ` - BIC : ${company.bic}`;
+        doc.text(bankInfo, 50, footerY, { width: tableWidth, align: 'center' });
+      }
+
+      const companyCityLine = [company.address || '', company.postalCode || '', company.city || ''].join(' ').trim();
+      doc.text(
+        `${companyName}${companyCityLine ? ' - ' + companyCityLine : ''}`,
+        50,
+        footerY + 12,
+        { width: tableWidth, align: 'center' },
+      );
+
+      doc.end();
+    } catch (err) {
+      doc.destroy();
+      reject(err);
     }
-
-    // Footer
-    const footerY = docType === 'devis' ? 750 : 730;
-    doc.font('Helvetica').fontSize(7).fillColor('#999999');
-    if (company.iban) {
-      let bankInfo = 'Coordonnées bancaires : ';
-      if (company.accountHolder) bankInfo += company.accountHolder + ' - ';
-      bankInfo += `IBAN : ${company.iban}`;
-      if (company.bic) bankInfo += ` - BIC : ${company.bic}`;
-      doc.text(bankInfo, 50, footerY, { width: tableWidth, align: 'center' });
-    }
-
-    doc.text(
-      `${companyName} - ${company.address || ''} ${company.postalCode || ''} ${company.city || ''}`.trim(),
-      50,
-      footerY + 12,
-      { width: tableWidth, align: 'center' }
-    );
-
-    doc.end();
   });
 }
 
 export async function generateDevisPDF(
   devis: Devis & { client: Client; items: DevisItem[] },
-  user: CompanyInfo
+  user: CompanyInfo,
 ): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margin: 0 });
   return buildPDF(
@@ -399,17 +414,17 @@ export async function generateDevisPDF(
     user,
     devis.client,
     devis.items,
-    devis.globalDiscount,
+    devis.globalDiscount || 0,
     'devis',
     devis.number,
     new Date(devis.issueDate),
-    new Date(devis.validUntil)
+    new Date(devis.validUntil),
   );
 }
 
 export async function generateInvoicePDF(
   invoice: Invoice & { client: Client; items: InvoiceItem[]; devis?: { number: string } | null },
-  user: CompanyInfo
+  user: CompanyInfo,
 ): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margin: 0 });
   return buildPDF(
@@ -417,11 +432,11 @@ export async function generateInvoicePDF(
     user,
     invoice.client,
     invoice.items,
-    invoice.globalDiscount,
+    invoice.globalDiscount || 0,
     'invoice',
     invoice.number,
     new Date(invoice.issueDate),
     new Date(invoice.dueDate),
-    invoice.devis?.number
+    invoice.devis?.number,
   );
 }
