@@ -7,9 +7,12 @@ services:
       npm i -g bun &&
       bun install &&
       bunx prisma migrate deploy &&
-      bun run build &&
+      next build &&
       mkdir -p .next/standalone/node_modules/pdfkit/js &&
-      cp -r node_modules/pdfkit/js/data .next/standalone/node_modules/pdfkit/js/data
+      cp -r node_modules/pdfkit/js/data .next/standalone/node_modules/pdfkit/js/data &&
+      cp -r .next/static .next/standalone/.next/ &&
+      cp -r public .next/standalone/ &&
+      cp -r prisma .next/standalone/prisma
     startCommand: node .next/standalone/server.js
     envVars:
       - key: HOSTNAME
