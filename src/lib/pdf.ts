@@ -74,8 +74,8 @@ const PW = 595.28; // A4 width
 const PH = 841.89; // A4 height
 const MG = 45; // margin
 const CW = PW - 2 * MG; // content width
-const CONTENT_BOTTOM = FOOTER_Y - 12;
 const FOOTER_Y = PH - 38;
+const CONTENT_BOTTOM = FOOTER_Y - 12;
 
 // ═══════════════════════════════════════════════════════════════
 // HELPERS
@@ -449,7 +449,8 @@ if (!ctx.ae) {
     const lineHt = (i.quantity || 0) * (i.unitPrice || 0);
 
     // 🔥 appliquer remise proportionnelle
-    const lineHtAfterDiscount = lineHt * (netHt / totalHt);
+    	const ratio = totalHt > 0 ? netHt / totalHt : 1;
+	const lineHtAfterDiscount = lineHt * ratio;
 
     const tva = lineHtAfterDiscount * ((i.tvaRate || 0) / 100);
 
