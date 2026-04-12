@@ -3,7 +3,7 @@ services:
     name: facturapro
     runtime: node
     plan: free
-    buildCommand: bun run build
+    buildCommand: curl -fsSL https://bun.sh/install | bash && bun install && bun run build
     startCommand: bun run start
     envVars:
       - key: HOSTNAME
@@ -16,17 +16,7 @@ services:
         fromDatabase:
           name: facturapro-db
           property: connectionString
-  - type: pserv
-    name: facturapro-db
+
+databases:
+  - name: facturapro-db
     plan: free
-    envVars:
-      - key: PGUSER
-        value: postgres
-      - key: PGHOST
-        value: localhost
-      - key: PGPORT
-        value: 5432
-      - key: PGDATABASE
-        value: facturapro
-      - key: PGPASSWORD
-        generateValue: true
