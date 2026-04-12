@@ -175,14 +175,34 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
+  // Helper: handle auth errors from API responses
+  handleAuthError: (res: Response) => {
+    if (res.status === 401) {
+      set({
+        user: null,
+        isAuthenticated: false,
+        authLoading: false,
+        clients: [],
+        devis: [],
+        invoices: [],
+        dashboardData: null,
+        settings: null,
+      });
+      window.location.href = '/login';
+      return true;
+    }
+    return false;
+  },
+
   // Data fetch
   fetchClients: async (search?: string) => {
     try {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
       const res = await fetch(`/api/clients?${params.toString()}`);
+      if (get().handleAuthError(res)) return;
       const data = await res.json();
-      if (res.ok) set({ clients: data.clients });
+      if (res.ok) set({ clients: data.clients || [] });
     } catch {
       // ignore
     }
@@ -194,8 +214,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (status) params.set('status', status);
       if (search) params.set('search', search);
       const res = await fetch(`/api/devis?${params.toString()}`);
+      if (get().handleAuthError(res)) return;
       const data = await res.json();
-      if (res.ok) set({ devis: data.devis });
+      if (res.ok) set({ devis: data.devis || [] });
     } catch {
       // ignore
     }
@@ -207,8 +228,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (status) params.set('status', status);
       if (search) params.set('search', search);
       const res = await fetch(`/api/invoices?${params.toString()}`);
+      if (get().handleAuthError(res)) return;
       const data = await res.json();
-      if (res.ok) set({ invoices: data.invoices });
+      if (res.ok) set({ invoices: data.invoices || [] });
     } catch {
       // ignore
     }
@@ -217,6 +239,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   fetchDashboard: async () => {
     try {
       const res = await fetch('/api/dashboard');
+      if (get().handleAuthError(res)) return;
       const data = await res.json();
       if (res.ok) set({ dashboardData: data });
     } catch {
@@ -227,6 +250,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   fetchSettings: async () => {
     try {
       const res = await fetch('/api/settings');
+      if (get().handleAuthError(res)) return;
       const data = await res.json();
       if (res.ok) set({ settings: data.settings });
     } catch {

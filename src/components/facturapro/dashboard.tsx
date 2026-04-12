@@ -42,22 +42,57 @@ export function Dashboard() {
     setSelectedDevisId,
     setSelectedInvoiceId,
     setPage,
+    isAuthenticated,
   } = useAppStore();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const fetchIdRef = useRef(0);
 
   useEffect(() => {
     const id = ++fetchIdRef.current;
-    fetchDashboard().then(() => {
-      if (id === fetchIdRef.current) setLoading(false);
-    });
+    fetchDashboard()
+      .then(() => {
+        if (id === fetchIdRef.current) setLoading(false);
+      })
+      .catch(() => {
+        if (id === fetchIdRef.current) {
+          setLoading(false);
+          setError('Erreur lors du chargement des données');
+        }
+      });
     return () => { fetchIdRef.current++; };
-  }, [fetchDashboard]);
+  }, [fetchDashboard, isAuthenticated]);
 
-  if (loading || !dashboardData) {
+  if (!isAuthenticated) return null;
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !dashboardData) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Tableau de bord</h2>
+          <p className="text-muted-foreground text-sm">Vue d&apos;ensemble de votre activité</p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-muted-foreground mb-4">{error || 'Aucune donnée disponible'}</p>
+          <Button variant="outline" onClick={() => {
+            setLoading(true);
+            setError(null);
+            fetchDashboard().then(() => setLoading(false)).catch(() => {
+              setLoading(false);
+              setError('Erreur lors du chargement des données');
+            });
+          }}>
+            Réessayer
+          </Button>
+        </div>
       </div>
     );
   }
