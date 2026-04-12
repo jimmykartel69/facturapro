@@ -114,6 +114,12 @@ function rowHeight(doc: PDFDocument, desc: string, colW: number): number {
   return Math.max(24, h + 12);
 }
 
+// New helper: measure text width with font/size
+function measure(doc: PDFDocument, text: string, font = 'Helvetica', size = 8.5) {
+  doc.font(font).fontSize(size);
+  return doc.widthOfString(text);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // PAGE MANAGEMENT
 // ═══════════════════════════════════════════════════════════════
@@ -217,7 +223,6 @@ function drawHeader(ctx: Ctx): void {
   if (s(company.phone)) lines.push(`Tel : ${s(company.phone)}`);
   if (s(company.professionalEmail)) lines.push(s(company.professionalEmail)!);
   if (s(company.siret)) lines.push(`SIRET : ${s(company.siret)}`);
-  // NO capital social
 
   for (const line of lines) {
     doc.text(line, lx, ly);
@@ -306,7 +311,7 @@ function drawClientCard(ctx: Ctx): void {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SECTION — TABLE
+// SECTION — TABLE (IMPROVED LAYOUT)
 // ═══════════════════════════════════════════════════════════════
 
 function getColWidths(ae: boolean) {
@@ -327,43 +332,56 @@ function getColWidths(ae: boolean) {
   };
 }
 
+// New: returns absolute x positions and widths for each column (pixel-perfect)
+function getColLayout(ae: boolean) {
+  const cols = getColWidths(ae);
+  const x0 = MG;
+  const layout: Record<string, { x: number; w: number }> = {};
+  let cx = x0;
+  layout.desc = { x: cx, w: cols.desc }; cx += cols.desc;
+  layout.qty  = { x: cx, w: cols.qty  }; cx += cols.qty;
+  layout.pu   = { x: cx, w: cols.pu   }; cx += cols.pu;
+  if (!ae && (cols as any).tva !== undefined) {
+    layout.tva = { x: cx, w: (cols as any).tva }; cx += (cols as any).tva;
+  }
+  layout.total = { x: cx, w: cols.total };
+  return layout;
+}
+
 function drawTableHeader(ctx: Ctx, cols: ReturnType<typeof getColWidths>): void {
   const { doc } = ctx;
+  const layout = getColLayout(ctx.ae);
   const x = MG;
   const h = 24;
 
   doc.roundedRect(x, ctx.y, CW, h, 3).fill(C.primary);
 
   doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.white);
-  let cx = x;
-  doc.text('Description', cx + 6, ctx.y + 7, { width: cols.desc - 10 });
-  cx += cols.desc;
-  doc.text('Qte', cx + 4, ctx.y + 7, { width: cols.qty - 8, align: 'center' });
-  cx += cols.qty;
-  doc.text('P.U. HT', cx + 4, ctx.y + 7, { width: cols.pu - 8, align: 'right' });
-  cx += cols.pu;
-  if (!ctx.ae && cols.tva) {
-    doc.text('TVA', cx + 4, ctx.y + 7, { width: cols.tva - 8, align: 'center' });
-    cx += cols.tva;
+  doc.text('Description', layout.desc.x + 6, ctx.y + 7, { width: layout.desc.w - 10 });
+  doc.text('Qte', layout.qty.x + 4, ctx.y + 7, { width: layout.qty.w - 8, align: 'center' });
+  doc.text('P.U. HT', layout.pu.x + 4, ctx.y + 7, { width: layout.pu.w - 8, align: 'right' });
+  if (!ctx.ae && layout.tva) {
+    doc.text('TVA', layout.tva.x + 4, ctx.y + 7, { width: layout.tva.w - 8, align: 'center' });
   }
-  doc.text('Total HT', cx + 4, ctx.y + 7, { width: cols.total - 10, align: 'right' });
+  doc.text('Total HT', layout.total.x + 4, ctx.y + 7, { width: layout.total.w - 10, align: 'right' });
 
   ctx.y += h;
 }
 
 function drawTableRow(ctx: Ctx, item: DevisItem | InvoiceItem, cols: ReturnType<typeof getColWidths>, idx: number): void {
   const { doc } = ctx;
+  const layout = getColLayout(ctx.ae);
   const desigText = item.designation || '';
   const descText = item.description || '';
   const combinedText = desigText + (desigText && descText ? '\n' : '') + descText;
-const rh = rowHeight(doc, combinedText, cols.desc);
+  const rh = rowHeight(doc, combinedText, layout.desc.w);
 
-// 🔥 important
-ensureSpace(ctx, rh, true);
+  ensureSpace(ctx, rh, true);
 
   // Alternating stripe
   if (idx % 2 === 1) {
     doc.rect(MG, ctx.y, CW, rh).fill(C.bgStripe);
+    doc.fillColor(C.text);
   }
 
   // Bottom line
@@ -371,38 +389,46 @@ ensureSpace(ctx, rh, true);
     .strokeColor(C.border).lineWidth(0.3).stroke();
 
   const pad = 6;
-  let cx = MG;
 
   // Description column: designation (bold) + description (normal)
-  const textX = cx + pad;
-  const textW = cols.desc - pad * 2;
-  if (desigText) {
-    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.text);
-    doc.text(desigText, textX, ctx.y + 6, { width: textW });
-  }
+  const textX = layout.desc.x + pad;
+  const textW = layout.desc.w - pad * 2;
+
+  // Draw designation and description with precise vertical placement
+  doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.text);
+  const desigHeight = desigText ? doc.heightOfString(desigText, { width: textW }) : 0;
+  if (desigText) doc.text(desigText, textX, ctx.y + 6, { width: textW });
+
   if (descText) {
-    const desigHeight = desigText ? doc.heightOfString(desigText, { width: textW }) : 0;
     doc.font('Helvetica').fontSize(7.5).fillColor(C.textSec);
-    doc.text(descText, textX, ctx.y + 6 + desigHeight + 1, { width: textW });
-  }
-  cx += cols.desc;
-
-  doc.text(String(item.quantity ?? 0), cx + pad, ctx.y + 6, { width: cols.qty - pad * 2, align: 'center' });
-  cx += cols.qty;
-
-  doc.text(fmtCur(item.unitPrice), cx + pad, ctx.y + 6, { width: cols.pu - pad * 2, align: 'right' });
-  cx += cols.pu;
-
-  if (!ctx.ae && cols.tva) {
-    doc.text(`${item.tvaRate || 0}%`, cx + pad, ctx.y + 6, { width: cols.tva - pad * 2, align: 'center' });
-    cx += cols.tva;
+    doc.text(descText, textX, ctx.y + 6 + desigHeight + (desigText ? 2 : 0), { width: textW });
   }
 
+  // Quantity centered
+  const qtyStr = String(item.quantity ?? 0);
+  const qtyW = measure(doc, qtyStr, 'Helvetica', 8);
+  const qtyX = layout.qty.x + (layout.qty.w - qtyW) / 2;
+  doc.font('Helvetica').fontSize(8).fillColor(C.text).text(qtyStr, qtyX, ctx.y + 6);
+
+  // PU right aligned
+  const puStr = fmtCur(Number(item.unitPrice || 0));
+  const puW = measure(doc, puStr, 'Helvetica', 8);
+  doc.font('Helvetica').fontSize(8).fillColor(C.text).text(puStr, layout.pu.x + layout.pu.w - pad - puW, ctx.y + 6);
+
+  // TVA centered (if present)
+  if (!ctx.ae && layout.tva) {
+    const tvaStr = `${item.tvaRate || 0}%`;
+    const tvaW = measure(doc, tvaStr, 'Helvetica', 8);
+    doc.font('Helvetica').fontSize(8).fillColor(C.text).text(tvaStr, layout.tva.x + (layout.tva.w - tvaW) / 2, ctx.y + 6);
+  }
+
+  // Line total right aligned (bold)
   const q = Number(item.quantity || 0);
   const pu = Number(item.unitPrice || 0);
   const lineTotal = q * pu;
-  doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.text);
-  doc.text(fmtCur(lineTotal), cx + pad, ctx.y + 6, { width: cols.total - pad * 2, align: 'right' });
+  const totalStr = fmtCur(lineTotal);
+  const totalW = measure(doc, totalStr, 'Helvetica-Bold', 8.5);
+  doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.text).text(totalStr, layout.total.x + layout.total.w - pad - totalW, ctx.y + 6);
 
   ctx.y += rh;
 }
@@ -438,7 +464,7 @@ function drawTotals(ctx: Ctx): void {
     .strokeColor(C.border).lineWidth(0.5).stroke();
   ctx.y += 10;
 
-const totalHt = ctx.items.reduce((a, i) => a + (i.quantity || 0) * (i.unitPrice || 0), 0);
+  const totalHt = ctx.items.reduce((a, i) => a + (i.quantity || 0) * (i.unitPrice || 0), 0);
 
   // Discount first
   let discount = 0;
@@ -478,14 +504,16 @@ const totalHt = ctx.items.reduce((a, i) => a + (i.quantity || 0) * (i.unitPrice 
     ctx.y += 17;
   }
 
-  // TVA lines
-  tvaMap.forEach((amt, rate) => {
+  // TVA lines (stable order by rate)
+  const sortedRates = Array.from(tvaMap.keys()).sort((a, b) => a - b);
+  for (const rate of sortedRates) {
+    const amt = tvaMap.get(rate) || 0;
     doc.font('Helvetica').fontSize(9).fillColor(C.textSec);
     doc.text(`TVA ${rate}%`, sx, ctx.y, { width: lblW, align: 'right' });
     doc.font('Helvetica').fontSize(9).fillColor(C.text);
     doc.text(fmtCur(amt), sx + lblW, ctx.y, { width: valW, align: 'right' });
     ctx.y += 17;
-  });
+  }
 
   // AE mention
   if (ctx.ae) {
@@ -747,7 +775,7 @@ function buildDocument(
       // Footer on last page
       drawFooter(ctx);
 
-      // 🔥 sécurité : toujours finir proprement
+      // sécurité : toujours finir proprement
       doc.flushPages();
       doc.end();
     } catch (err) {
