@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Component, type ReactNode } from 'react';
+import React, { useState, useEffect, Component, type ReactNode, useCallback } from 'react';
 import { Menu, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,8 +42,14 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // Keep console logging for debugging; in prod you might send this to a monitoring service
+    // eslint-disable-next-line no-console
     console.error('ErrorBoundary caught:', error, errorInfo);
   }
+
+  reset = () => {
+    this.setState({ hasError: false, error: null });
+  };
 
   render() {
     if (this.state.hasError) {
@@ -55,7 +61,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
           <p className="text-sm text-muted-foreground mb-4 max-w-md">
             {this.state.error?.message || 'Erreur inconnue'}
           </p>
-          <Button variant="outline" onClick={() => this.setState({ hasError: false, error: null })}>
+          <Button variant="outline" onClick={this.reset}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Réessayer
           </Button>
@@ -66,7 +72,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 }
 
-function LoginPage() {
+function LoginPage(): JSX.Element {
   const { login, register } = useAppStore();
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
@@ -80,14 +86,20 @@ function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    let err: string | null;
-    if (isRegister) {
-      err = await register(name, firstName, email, password);
-    } else {
-      err = await login(email, password);
+    try {
+      let err: string | null = null;
+      if (isRegister) {
+        err = await register(name.trim(), firstName.trim(), email.trim(), password);
+      } else {
+        err = await login(email.trim(), password);
+      }
+      if (err) setError(err);
+    } catch (errAny) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      setError((errAny as Error)?.message || 'Erreur inattendue');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    if (err) setError(err);
   };
 
   return (
@@ -95,8 +107,8 @@ function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
-            <div className="w-10 h-10 bg-[#1a1a2e] rounded-lg flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-10 h-10 bg-[#1a1a2e] rounded-lg flex items-center justify-center" aria-hidden>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" role="img" aria-label="FacturaPro logo">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
                 <line x1="16" y1="13" x2="8" y2="13"/>
@@ -116,32 +128,32 @@ function LoginPage() {
             {isRegister ? 'Créer un compte' : 'Se connecter'}
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {isRegister && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="auth-name">Nom *</Label>
-                  <Input id="auth-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Dupont" required />
+                  <Input id="auth-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Dupont" required autoComplete="family-name" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="auth-firstname">Prénom</Label>
-                  <Input id="auth-firstname" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jean" />
+                  <Input id="auth-firstname" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jean" autoComplete="given-name" />
                 </div>
               </>
             )}
             <div className="space-y-2">
               <Label htmlFor="auth-email">Email *</Label>
-              <Input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.fr" required />
+              <Input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.fr" required autoComplete="email" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="auth-password">Mot de passe *</Label>
-              <Input id="auth-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={8} />
+              <Input id="auth-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={8} autoComplete={isRegister ? 'new-password' : 'current-password'} />
               {isRegister && (
                 <p className="text-xs text-muted-foreground">Minimum 8 caractères</p>
               )}
             </div>
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+              <div role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
                 {error}
               </div>
             )}
@@ -153,6 +165,7 @@ function LoginPage() {
 
           <div className="mt-4 text-center">
             <button
+              type="button"
               onClick={() => { setIsRegister(!isRegister); setError(''); }}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
@@ -171,7 +184,7 @@ function LoginPage() {
   );
 }
 
-function AuthenticatedApp() {
+function AuthenticatedApp(): JSX.Element {
   const {
     currentPage,
     sidebarOpen,
@@ -188,11 +201,12 @@ function AuthenticatedApp() {
   const setMobileSidebarOpen = useAppStore((s) => s.setMobileSidebarOpen);
 
   useEffect(() => {
+    // fetchClients and fetchDashboard are stable selectors from the store; keep them in deps to satisfy lint rules
     fetchClients();
     fetchDashboard();
   }, [fetchClients, fetchDashboard]);
 
-  const renderCurrentPage = () => {
+  const renderCurrentPage = useCallback(() => {
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard />;
@@ -207,7 +221,7 @@ function AuthenticatedApp() {
       default:
         return <Dashboard />;
     }
-  };
+  }, [currentPage, selectedClientId, selectedDevisId, selectedInvoiceId]);
 
   return (
     <div className="min-h-screen bg-slate-50/50">
@@ -219,7 +233,7 @@ function AuthenticatedApp() {
         )}
       >
         <header className="lg:hidden sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setMobileSidebarOpen(true)}>
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setMobileSidebarOpen(true)} aria-label="Ouvrir le menu">
             <Menu className="w-5 h-5" />
           </Button>
           <h1 className="font-bold text-[#1a1a2e]">FacturaPro</h1>
@@ -240,7 +254,7 @@ function AuthenticatedApp() {
   );
 }
 
-export default function FacturaProApp() {
+export default function FacturaProApp(): JSX.Element {
   const { authLoading, isAuthenticated, fetchSession } = useAppStore();
 
   useEffect(() => {
