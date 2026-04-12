@@ -19,3 +19,26 @@ Stage Summary:
 - Error handling: SettingsPage shows retry button on error instead of infinite spinner
 - Auth flow: handleAuthError no longer redirects, letting SPA handle auth state gracefully
 - Files changed: src/app/page.tsx, src/components/facturapro/settings.tsx, src/components/facturapro/sidebar.tsx, src/lib/store.ts
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix PDF generation 500 error on /api/devis/[id]/pdf and /api/invoices/[id]/pdf
+
+Work Log:
+- Analyzed screenshot: browser shows `{"error":"Erreur serveur"}` with 500 status when accessing PDF endpoints
+- Read all PDF-related files: pdf.ts, devis/[id]/pdf/route.ts, invoices/[id]/pdf/route.ts
+- Identified multiple issues in pdf.ts:
+  1. `contaned: true` typo in doc.image() options (should be `contained` or just use `fit`)
+  2. No null-safety on doc.text() calls - PDFKit crashes with null/undefined
+  3. French accented characters (é, è, ê, etc.) could cause encoding issues with Helvetica font
+  4. No try/catch around PDF build body - errors not caught before doc.end()
+- Fixed Content-Disposition from `attachment` to `inline` for browser viewing
+- Added Content-Length header for proper PDF streaming
+- Changed error response to include actual error message for debugging
+- Replaced French accented characters with ASCII-safe alternatives in PDF text
+
+Stage Summary:
+- Completely rewrote src/lib/pdf.ts with robust null handling
+- Added safeText() helper function to prevent null/undefined crashes
+- Fixed both PDF API routes with inline disposition and Content-Length
+- Build passes, lint passes, pushed to GitHub
