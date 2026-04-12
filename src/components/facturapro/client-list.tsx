@@ -103,11 +103,11 @@ export function ClientList() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Clients</h2>
-          <p className="text-muted-foreground mt-1">Manage your client database</p>
+          <p className="text-muted-foreground mt-1">Gérez votre base de données clients</p>
         </div>
         <Button onClick={() => setShowClientForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white gap-2 self-start">
           <Plus className="h-4 w-4" />
-          Add Client
+          Ajouter un client
         </Button>
       </div>
 
@@ -117,7 +117,7 @@ export function ClientList() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search clients..."
+              placeholder="Rechercher des clients..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -131,14 +131,14 @@ export function ClientList() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Users className="h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-medium">No clients found</h3>
+            <h3 className="mt-4 text-lg font-medium">Aucun client trouvé</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {searchQuery ? 'Try adjusting your search' : 'Add your first client to get started'}
+              {searchQuery ? 'Essayez d\'ajuster votre recherche' : 'Ajoutez votre premier client pour commencer'}
             </p>
             {!searchQuery && (
               <Button onClick={() => setShowClientForm(true)} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">
                 <Plus className="h-4 w-4 mr-2" />
-                Add Client
+                Ajouter un client
               </Button>
             )}
           </CardContent>
@@ -180,11 +180,11 @@ export function ClientList() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); selectClient(client.id); }}>
                           <Eye className="h-4 w-4 mr-2" />
-                          View Details
+                          Voir les détails
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingClient(client.id); }}>
                           <Pencil className="h-4 w-4 mr-2" />
-                          Edit
+                          Modifier
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -192,7 +192,7 @@ export function ClientList() {
                           className="text-red-600 focus:text-red-600"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
+                          Supprimer
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -213,15 +213,15 @@ export function ClientList() {
 
                   <div className="mt-4 pt-3 border-t grid grid-cols-3 gap-2 text-center">
                     <div>
-                      <p className="text-xs text-muted-foreground">Invoices</p>
+                      <p className="text-xs text-muted-foreground">Factures</p>
                       <p className="text-sm font-semibold">{stats.count}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Paid</p>
+                      <p className="text-xs text-muted-foreground">Payé</p>
                       <p className="text-sm font-semibold text-emerald-600">{formatCurrency(stats.paid)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Outstanding</p>
+                      <p className="text-xs text-muted-foreground">En attente</p>
                       <p className={cn("text-sm font-semibold", (stats.pending + stats.overdue) > 0 ? "text-amber-600" : "text-slate-400")}>
                         {formatCurrency(stats.pending + stats.overdue)}
                       </p>
@@ -238,14 +238,14 @@ export function ClientList() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Client</DialogTitle>
+            <DialogTitle>Supprimer le client</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this client? Their invoices will be preserved.
+              Êtes-vous sûr de vouloir supprimer ce client ? Ses factures seront conservées.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={handleDelete}>Supprimer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

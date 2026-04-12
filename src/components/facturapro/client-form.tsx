@@ -57,72 +57,72 @@ export function ClientForm({ open, onClose, editingClient }: ClientFormProps) {
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{editingClient ? 'Edit Client' : 'Add New Client'}</DialogTitle>
+          <DialogTitle>{editingClient ? 'Modifier le client' : 'Ajouter un nouveau client'}</DialogTitle>
           <DialogDescription>
-            {editingClient ? 'Update client information.' : 'Fill in the client details.'}
+            {editingClient ? 'Mettez à jour les informations du client.' : 'Remplissez les informations du client.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="name">Full Name *</Label>
+              <Label htmlFor="name">Nom complet *</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. María García"
+                placeholder="ex. Marie Dupont"
               />
             </div>
             <div>
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">E-mail *</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="client@example.com"
+                placeholder="client@exemple.com"
               />
             </div>
           </div>
           <div>
-            <Label htmlFor="company">Company</Label>
+            <Label htmlFor="company">Entreprise</Label>
             <Input
               id="company"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
-              placeholder="Company name (optional)"
+              placeholder="Nom de l'entreprise (facultatif)"
             />
           </div>
           <div>
-            <Label htmlFor="phone">Phone</Label>
+            <Label htmlFor="phone">Téléphone</Label>
             <Input
               id="phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+34 612 345 678"
+              placeholder="+33 6 12 34 56 78"
             />
           </div>
           <div>
-            <Label htmlFor="address">Address</Label>
+            <Label htmlFor="address">Adresse</Label>
             <Textarea
               id="address"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Full address (optional)"
+              placeholder="Adresse complète (facultatif)"
               rows={2}
             />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
           <Button
             onClick={handleSubmit}
             disabled={!isValid}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {editingClient ? 'Update Client' : 'Add Client'}
+            {editingClient ? 'Mettre à jour' : 'Ajouter le client'}
           </Button>
         </DialogFooter>
       </DialogContent>

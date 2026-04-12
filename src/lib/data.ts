@@ -85,7 +85,7 @@ export const sampleInvoices: Invoice[] = [
     tax: 1638,
     total: 10738,
     status: 'paid',
-    notes: 'Payment received via bank transfer.',
+    notes: 'Paiement reçu par virement bancaire.',
   },
   {
     id: 'inv-2',
@@ -102,7 +102,7 @@ export const sampleInvoices: Invoice[] = [
     tax: 849.6,
     total: 5569.6,
     status: 'paid',
-    notes: 'Completed ahead of schedule.',
+    notes: 'Terminé en avance du planning.',
   },
   {
     id: 'inv-3',
@@ -120,7 +120,7 @@ export const sampleInvoices: Invoice[] = [
     tax: 2043,
     total: 13393,
     status: 'overdue',
-    notes: 'Follow-up required for payment.',
+    notes: 'Relance de paiement nécessaire.',
   },
   {
     id: 'inv-4',
@@ -186,7 +186,7 @@ export const sampleInvoices: Invoice[] = [
     tax: 1713.6,
     total: 11233.6,
     status: 'pending',
-    notes: 'Phase 2 of ongoing project.',
+    notes: 'Phase 2 du projet en cours.',
   },
   {
     id: 'inv-8',
@@ -236,7 +236,7 @@ export const sampleInvoices: Invoice[] = [
     tax: 860.4,
     total: 5640.4,
     status: 'cancelled',
-    notes: 'Project cancelled by client request.',
+    notes: 'Projet annulé à la demande du client.',
   },
 ];
 

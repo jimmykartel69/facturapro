@@ -37,7 +37,7 @@ import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { formatCurrency, formatDate, getStatusBadge } from '@/lib/helpers';
 
 const chartConfig = {
-  revenue: { label: 'Revenue', color: '#3b82f6' },
+  revenue: { label: 'Revenus', color: '#3b82f6' },
 };
 
 export function Dashboard() {
@@ -49,44 +49,44 @@ export function Dashboard() {
 
   const kpis = [
     {
-      title: 'Total Revenue',
+      title: 'Chiffre d\'affaires',
       value: formatCurrency(stats.totalRevenue),
-      description: 'From paid invoices',
+      description: 'Factures payées',
       icon: DollarSign,
-      trend: '+12.5%',
+      trend: '+12,5%',
       trendUp: true,
       color: 'text-emerald-600',
       bg: 'bg-emerald-50',
       iconBg: 'bg-emerald-100',
     },
     {
-      title: 'Pending Invoices',
+      title: 'Factures en attente',
       value: stats.pendingCount.toString(),
-      description: formatCurrency(stats.pendingAmount) + ' total',
+      description: formatCurrency(stats.pendingAmount) + ' au total',
       icon: Clock,
-      trend: stats.pendingCount > 0 ? 'Action needed' : 'All clear',
+      trend: stats.pendingCount > 0 ? 'Action requise' : 'Tout est en ordre',
       trendUp: false,
       color: 'text-amber-600',
       bg: 'bg-amber-50',
       iconBg: 'bg-amber-100',
     },
     {
-      title: 'Paid Invoices',
+      title: 'Factures payées',
       value: stats.paidCount.toString(),
-      description: 'Successfully collected',
+      description: 'Encaissement réussi',
       icon: CheckCircle2,
-      trend: '+3 this month',
+      trend: '+3 ce mois',
       trendUp: true,
       color: 'text-blue-600',
       bg: 'bg-blue-50',
       iconBg: 'bg-blue-100',
     },
     {
-      title: 'Overdue',
+      title: 'En retard',
       value: stats.overdueCount.toString(),
-      description: formatCurrency(stats.overdueAmount) + ' at risk',
+      description: formatCurrency(stats.overdueAmount) + ' en risque',
       icon: AlertTriangle,
-      trend: stats.overdueCount > 0 ? 'Needs attention' : 'None',
+      trend: stats.overdueCount > 0 ? 'Attention requise' : 'Aucune',
       trendUp: false,
       color: 'text-red-600',
       bg: 'bg-red-50',
@@ -98,19 +98,19 @@ export function Dashboard() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h2>
-        <p className="text-muted-foreground mt-1">Overview of your invoicing activity</p>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">Tableau de bord</h2>
+        <p className="text-muted-foreground mt-1">Vue d\'ensemble de votre activité de facturation</p>
       </div>
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3">
         <Button onClick={() => setShowInvoiceForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
           <Plus className="h-4 w-4" />
-          Create Invoice
+          Créer une facture
         </Button>
         <Button variant="outline" onClick={() => setPage('reports')} className="gap-2">
           <BarChart3 className="h-4 w-4" />
-          View Reports
+          Voir les rapports
         </Button>
       </div>
 
@@ -154,9 +154,9 @@ export function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-blue-600" />
-              Revenue Overview
+              Aperçu des revenus
             </CardTitle>
-            <CardDescription>Monthly revenue from paid invoices (last 6 months)</CardDescription>
+            <CardDescription>Revenus mensuels des factures payées (6 derniers mois)</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -174,7 +174,7 @@ export function Dashboard() {
                   tickLine={false}
                   axisLine={false}
                   tick={{ fill: 'var(--muted-foreground)' }}
-                  tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k €`}
                 />
                 <Tooltip content={<ChartTooltipContent />} />
                 <Bar
@@ -192,9 +192,9 @@ export function Dashboard() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Recent Invoices</CardTitle>
+              <CardTitle className="text-base">Factures récentes</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setPage('invoices')} className="text-xs text-blue-600 hover:text-blue-700">
-                View All
+                Tout voir
               </Button>
             </div>
           </CardHeader>
@@ -227,22 +227,22 @@ export function Dashboard() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>All Recent Activity</CardTitle>
-              <CardDescription>Latest invoices across all statuses</CardDescription>
+              <CardTitle>Toute l'activité récente</CardTitle>
+              <CardDescription>Dernières factures tous statuts confondus</CardDescription>
             </div>
-            <Badge variant="secondary" className="text-xs">{invoices.length} total</Badge>
+            <Badge variant="secondary" className="text-xs">{invoices.length} au total</Badge>
           </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Invoice</TableHead>
+                <TableHead>Facture</TableHead>
                 <TableHead>Client</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Échéance</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead className="text-right">Montant</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

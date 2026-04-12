@@ -2,8 +2,17 @@ import { InvoiceStatus } from './types';
 import { Badge } from '@/components/ui/badge';
 import React from 'react';
 
+const statusLabels: Record<InvoiceStatus, string> = {
+  paid: 'Payée',
+  sent: 'Envoyée',
+  pending: 'En attente',
+  overdue: 'En retard',
+  draft: 'Brouillon',
+  cancelled: 'Annulée',
+};
+
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: 2,
@@ -11,7 +20,7 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
+  return new Date(dateStr).toLocaleDateString('fr-FR', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -31,9 +40,13 @@ export function getStatusBadge(status: InvoiceStatus): React.ReactNode {
   const config = variants[status];
   return (
     <Badge variant={config.variant} className={`text-xs font-medium ${config.className}`}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {statusLabels[status]}
     </Badge>
   );
+}
+
+export function getStatusLabel(status: InvoiceStatus): string {
+  return statusLabels[status];
 }
 
 export function todayISO(): string {

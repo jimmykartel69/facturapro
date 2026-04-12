@@ -34,9 +34,9 @@ export function InvoiceDetail() {
   if (!invoice) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-muted-foreground">Invoice not found.</p>
+        <p className="text-muted-foreground">Facture introuvable.</p>
         <Button variant="outline" onClick={() => selectInvoice(null)} className="mt-4">
-          Back to Invoices
+          Retour aux factures
         </Button>
       </div>
     );
@@ -59,17 +59,17 @@ export function InvoiceDetail() {
               <h2 className="text-2xl font-bold tracking-tight">{invoice.number}</h2>
               {getStatusBadge(invoice.status)}
             </div>
-            <p className="text-muted-foreground mt-0.5">Invoice details and management</p>
+            <p className="text-muted-foreground mt-0.5">Détails et gestion de la facture</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => setEditingInvoice(invoice.id)} className="gap-1.5">
             <Pencil className="h-3.5 w-3.5" />
-            Edit
+            Modifier
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5">
             <Printer className="h-3.5 w-3.5" />
-            Print
+            Imprimer
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5">
             <Download className="h-3.5 w-3.5" />
@@ -86,21 +86,21 @@ export function InvoiceDetail() {
               {(invoice.status === 'draft' || invoice.status === 'pending') && (
                 <Button size="sm" variant="outline" onClick={() => handleStatusUpdate('sent')} className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50">
                   <Send className="h-3.5 w-3.5" />
-                  Mark as Sent
+                  Marquer comme envoyée
                 </Button>
               )}
               {invoice.status !== 'overdue' && (
                 <Button size="sm" variant="outline" onClick={() => handleStatusUpdate('overdue')} className="gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50">
                   <XCircle className="h-3.5 w-3.5" />
-                  Mark as Overdue
+                  Marquer en retard
                 </Button>
               )}
               <Button size="sm" onClick={() => handleStatusUpdate('paid')} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Mark as Paid
+                Marquer comme payée
               </Button>
               <Button size="sm" variant="outline" onClick={() => handleStatusUpdate('cancelled')} className="gap-1.5 border-red-200 text-red-700 hover:bg-red-50">
-                Cancel Invoice
+                Annuler la facture
               </Button>
             </div>
           </CardContent>
@@ -120,7 +120,7 @@ export function InvoiceDetail() {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-slate-900">FacturaPro</h3>
-                    <p className="text-xs text-slate-500">Invoice Management</p>
+                    <p className="text-xs text-slate-500">Gestion de factures</p>
                   </div>
                 </div>
               </div>
@@ -133,18 +133,18 @@ export function InvoiceDetail() {
             {/* Client & Dates */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
               <div>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Bill To</p>
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Facturer à</p>
                 <p className="font-semibold text-slate-900">{invoice.clientName}</p>
                 <p className="text-sm text-slate-600">{invoice.clientEmail}</p>
               </div>
               <div className="sm:text-right">
                 <div className="space-y-1">
                   <div>
-                    <span className="text-xs text-slate-500">Issue Date: </span>
+                    <span className="text-xs text-slate-500">Date d'émission : </span>
                     <span className="text-sm font-medium">{formatDate(invoice.issueDate)}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-500">Due Date: </span>
+                    <span className="text-xs text-slate-500">Date d'échéance : </span>
                     <span className="text-sm font-medium">{formatDate(invoice.dueDate)}</span>
                   </div>
                 </div>
@@ -156,8 +156,8 @@ export function InvoiceDetail() {
               <TableHeader>
                 <TableRow className="bg-slate-50">
                   <TableHead>Description</TableHead>
-                  <TableHead className="text-center">Qty</TableHead>
-                  <TableHead className="text-right">Unit Price</TableHead>
+                  <TableHead className="text-center">Qté</TableHead>
+                  <TableHead className="text-right">Prix unitaire</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -177,11 +177,11 @@ export function InvoiceDetail() {
             <div className="flex justify-end mt-6">
               <div className="w-64 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Subtotal</span>
+                  <span className="text-slate-600">Sous-total</span>
                   <span className="font-medium">{formatCurrency(invoice.subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Tax</span>
+                  <span className="text-slate-600">TVA</span>
                   <span className="font-medium">{formatCurrency(invoice.tax)}</span>
                 </div>
                 <Separator />

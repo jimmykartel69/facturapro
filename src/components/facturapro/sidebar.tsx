@@ -18,10 +18,10 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 
 const navItems: { id: Page; label: string; icon: React.ElementType }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'invoices', label: 'Invoices', icon: FileText },
+  { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
+  { id: 'invoices', label: 'Factures', icon: FileText },
   { id: 'clients', label: 'Clients', icon: Users },
-  { id: 'reports', label: 'Reports', icon: BarChart3 },
+  { id: 'reports', label: 'Rapports', icon: BarChart3 },
 ];
 
 export function Sidebar() {
@@ -67,7 +67,7 @@ export function Sidebar() {
           {sidebarOpen && (
             <div className="overflow-hidden">
               <h1 className="text-lg font-bold tracking-tight whitespace-nowrap">FacturaPro</h1>
-              <p className="text-[10px] text-slate-400 -mt-0.5 whitespace-nowrap">Invoice Management</p>
+              <p className="text-[10px] text-slate-400 -mt-0.5 whitespace-nowrap">Gestion de factures</p>
             </div>
           )}
         </div>
@@ -109,7 +109,7 @@ export function Sidebar() {
             {sidebarOpen ? (
               <>
                 <ChevronLeft className="h-5 w-5 shrink-0" />
-                <span>Collapse</span>
+                <span>Réduire</span>
               </>
             ) : (
               <ChevronRight className="h-5 w-5 shrink-0" />
@@ -121,12 +121,12 @@ export function Sidebar() {
         {sidebarOpen && (
           <div className="px-4 pb-4">
             <div className="rounded-lg bg-slate-800/50 p-3">
-              <p className="text-xs text-slate-400">Pro Plan</p>
-              <p className="text-xs text-slate-500 mt-0.5">Unlimited invoices</p>
+              <p className="text-xs text-slate-400">Plan Pro</p>
+              <p className="text-xs text-slate-500 mt-0.5">Factures illimitées</p>
               <div className="mt-2 h-1.5 rounded-full bg-slate-700">
                 <div className="h-1.5 rounded-full bg-blue-500 w-3/4" />
               </div>
-              <p className="text-[10px] text-slate-500 mt-1">75% storage used</p>
+              <p className="text-[10px] text-slate-500 mt-1">75% stockage utilisé</p>
             </div>
           </div>
         )}

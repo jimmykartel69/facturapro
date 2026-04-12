@@ -37,18 +37,27 @@ import { useAppStore, useInvoiceStats, useMonthlyRevenue } from '@/lib/store';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { formatCurrency } from '@/lib/helpers';
 
+const statusLabels: Record<string, string> = {
+  paid: 'Payée',
+  sent: 'Envoyée',
+  pending: 'En attente',
+  overdue: 'En retard',
+  draft: 'Brouillon',
+  cancelled: 'Annulée',
+};
+
 const revenueChartConfig = {
-  revenue: { label: 'Revenue', color: '#3b82f6' },
-  count: { label: 'Invoices', color: '#60a5fa' },
+  revenue: { label: 'Revenus', color: '#3b82f6' },
+  count: { label: 'Factures', color: '#60a5fa' },
 };
 
 const pieChartConfig = {
-  paid: { label: 'Paid', color: '#10b981' },
-  sent: { label: 'Sent', color: '#3b82f6' },
-  pending: { label: 'Pending', color: '#f59e0b' },
-  overdue: { label: 'Overdue', color: '#ef4444' },
-  draft: { label: 'Draft', color: '#94a3b8' },
-  cancelled: { label: 'Cancelled', color: '#cbd5e1' },
+  paid: { label: 'Payée', color: '#10b981' },
+  sent: { label: 'Envoyée', color: '#3b82f6' },
+  pending: { label: 'En attente', color: '#f59e0b' },
+  overdue: { label: 'En retard', color: '#ef4444' },
+  draft: { label: 'Brouillon', color: '#94a3b8' },
+  cancelled: { label: 'Annulée', color: '#cbd5e1' },
 };
 
 const PIE_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#94a3b8', '#cbd5e1'];
@@ -78,7 +87,7 @@ export function Reports() {
   // Pie chart data
   const pieData = useMemo(() => {
     return statusBreakdown.map((item) => ({
-      name: item.status.charAt(0).toUpperCase() + item.status.slice(1),
+      name: statusLabels[item.status] || item.status,
       value: item.amount,
       count: item.count,
     }));
@@ -136,8 +145,8 @@ export function Reports() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Reports</h2>
-        <p className="text-muted-foreground mt-1">Financial insights and analytics</p>
+        <h2 className="text-2xl font-bold tracking-tight">Rapports</h2>
+        <p className="text-muted-foreground mt-1">Analyses et indicateurs financiers</p>
       </div>
 
       {/* Summary KPIs */}
@@ -146,7 +155,7 @@ export function Reports() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Revenue</p>
+                <p className="text-sm text-muted-foreground">Chiffre d'affaires total</p>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(stats.totalRevenue)}</p>
               </div>
               <div className="rounded-lg p-2.5 bg-emerald-100">
@@ -162,7 +171,7 @@ export function Reports() {
               <span className={`text-xs font-medium ${isRevenueUp ? 'text-emerald-600' : 'text-red-500'}`}>
                 {revenueChange}%
               </span>
-              <span className="text-xs text-muted-foreground">vs last month</span>
+              <span className="text-xs text-muted-foreground">vs mois précédent</span>
             </div>
           </CardContent>
         </Card>
@@ -170,42 +179,42 @@ export function Reports() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pending Amount</p>
+                <p className="text-sm text-muted-foreground">Montant en attente</p>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(stats.pendingAmount)}</p>
               </div>
               <div className="rounded-lg p-2.5 bg-amber-100">
                 <TrendingUp className="h-5 w-5 text-amber-600" />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">{stats.pendingCount} invoices awaiting payment</p>
+            <p className="text-xs text-muted-foreground mt-2">{stats.pendingCount} factures en attente de paiement</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Overdue Amount</p>
+                <p className="text-sm text-muted-foreground">Montant en retard</p>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(stats.overdueAmount)}</p>
               </div>
               <div className="rounded-lg p-2.5 bg-red-100">
                 <PieChartIcon className="h-5 w-5 text-red-600" />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">{stats.overdueCount} invoices overdue</p>
+            <p className="text-xs text-muted-foreground mt-2">{stats.overdueCount} factures en retard</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Invoices</p>
+                <p className="text-sm text-muted-foreground">Total des factures</p>
                 <p className="text-2xl font-bold mt-1">{invoices.length}</p>
               </div>
               <div className="rounded-lg p-2.5 bg-blue-100">
                 <Calendar className="h-5 w-5 text-blue-600" />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">{stats.paidCount} paid, {clients.length} clients</p>
+            <p className="text-xs text-muted-foreground mt-2">{stats.paidCount} payées, {clients.length} clients</p>
           </CardContent>
         </Card>
       </div>
@@ -215,8 +224,8 @@ export function Reports() {
         {/* Revenue Chart */}
         <Card className="xl:col-span-2">
           <CardHeader>
-            <CardTitle>Revenue Trend</CardTitle>
-            <CardDescription>Monthly revenue from paid invoices</CardDescription>
+            <CardTitle>Tendance des revenus</CardTitle>
+            <CardDescription>Revenus mensuels des factures payées</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={revenueChartConfig} className="h-[300px] w-full">
@@ -234,7 +243,7 @@ export function Reports() {
                   tickLine={false}
                   axisLine={false}
                   tick={{ fill: 'var(--muted-foreground)' }}
-                  tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k €`}
                 />
                 <Tooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[6, 6, 0, 0]} maxBarSize={50} />
@@ -246,8 +255,8 @@ export function Reports() {
         {/* Pie Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Status Breakdown</CardTitle>
-            <CardDescription>Invoice amounts by status</CardDescription>
+            <CardTitle>Répartition par statut</CardTitle>
+            <CardDescription>Montants des factures par statut</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={pieChartConfig} className="h-[300px] w-full">
@@ -285,14 +294,14 @@ export function Reports() {
         {/* Monthly Comparison */}
         <Card>
           <CardHeader>
-            <CardTitle>Monthly Comparison</CardTitle>
-            <CardDescription>This month vs previous month</CardDescription>
+            <CardTitle>Comparaison mensuelle</CardTitle>
+            <CardDescription>Ce mois vs mois précédent</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">This Month (Revenue)</span>
+                  <span className="text-sm font-medium">Ce mois (Revenus)</span>
                   <span className="text-sm font-bold">{formatCurrency(comparisonData.currentRevenue)}</span>
                 </div>
                 <div className="h-2 rounded-full bg-slate-100">
@@ -304,7 +313,7 @@ export function Reports() {
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Previous Month (Revenue)</span>
+                  <span className="text-sm font-medium">Mois précédent (Revenus)</span>
                   <span className="text-sm font-bold">{formatCurrency(comparisonData.previousRevenue)}</span>
                 </div>
                 <div className="h-2 rounded-full bg-slate-100">
@@ -316,11 +325,11 @@ export function Reports() {
               </div>
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Invoices (This)</p>
+                  <p className="text-xs text-muted-foreground">Factures (ce mois)</p>
                   <p className="text-lg font-bold text-blue-600">{comparisonData.currentCount}</p>
                 </div>
                 <div className="text-center p-3 bg-slate-50 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Invoices (Prev)</p>
+                  <p className="text-xs text-muted-foreground">Factures (préc.)</p>
                   <p className="text-lg font-bold text-slate-600">{comparisonData.previousCount}</p>
                 </div>
               </div>
@@ -331,17 +340,17 @@ export function Reports() {
         {/* Client Revenue Ranking */}
         <Card>
           <CardHeader>
-            <CardTitle>Client Revenue Ranking</CardTitle>
-            <CardDescription>Top clients by total invoice value</CardDescription>
+            <CardTitle>Classement clients par revenus</CardTitle>
+            <CardDescription>Top clients par montant total facturé</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Client</TableHead>
-                  <TableHead className="text-center">Invoices</TableHead>
+                  <TableHead className="text-center">Factures</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Paid</TableHead>
+                  <TableHead className="text-right">Payé</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -369,17 +378,17 @@ export function Reports() {
       {/* Status Breakdown Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Payment Status Details</CardTitle>
-          <CardDescription>Complete breakdown of all invoices by status</CardDescription>
+          <CardTitle>Détails par statut de paiement</CardTitle>
+          <CardDescription>Répartition complète de toutes les factures par statut</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-center">Count</TableHead>
-                <TableHead className="text-right">Total Amount</TableHead>
-                <TableHead className="text-right">% of Total</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead className="text-center">Nombre</TableHead>
+                <TableHead className="text-right">Montant total</TableHead>
+                <TableHead className="text-right">% du total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -388,7 +397,7 @@ export function Reports() {
                 const percentage = totalAll > 0 ? ((item.amount / totalAll) * 100).toFixed(1) : '0';
                 return (
                   <TableRow key={item.status}>
-                    <TableCell className="font-medium capitalize">{item.status}</TableCell>
+                    <TableCell className="font-medium">{statusLabels[item.status] || item.status}</TableCell>
                     <TableCell className="text-center">
                       <Badge variant="secondary">{item.count}</Badge>
                     </TableCell>

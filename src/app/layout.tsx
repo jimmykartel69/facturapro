@@ -14,16 +14,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FacturaPro - Professional Invoice Management",
-  description: "Modern invoice and billing management platform. Create, track, and manage invoices with ease.",
-  keywords: ["invoices", "billing", "SaaS", "invoice management", "FacturaPro"],
+  title: "FacturaPro - Gestion de Factures Professionnelle",
+  description: "Plateforme moderne de gestion de factures et de facturation. Créez, suivez et gérez vos factures facilement.",
+  keywords: ["factures", "facturation", "SaaS", "gestion de factures", "FacturaPro"],
   authors: [{ name: "FacturaPro" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "FacturaPro - Invoice Management",
-    description: "Professional invoice and billing management platform",
+    title: "FacturaPro - Gestion de Factures",
+    description: "Plateforme professionnelle de gestion de factures et de facturation",
     type: "website",
   },
 };
@@ -34,8 +34,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="fr" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         {children}

@@ -54,13 +54,13 @@ import { formatCurrency, formatDate, getStatusBadge } from '@/lib/helpers';
 import { cn } from '@/lib/utils';
 
 const statusFilters = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'sent', label: 'Sent' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'paid', label: 'Paid' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'all', label: 'Tous les statuts' },
+  { value: 'draft', label: 'Brouillon' },
+  { value: 'sent', label: 'Envoyée' },
+  { value: 'pending', label: 'En attente' },
+  { value: 'paid', label: 'Payée' },
+  { value: 'overdue', label: 'En retard' },
+  { value: 'cancelled', label: 'Annulée' },
 ];
 
 export function InvoiceList() {
@@ -132,12 +132,12 @@ export function InvoiceList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Invoices</h2>
-          <p className="text-muted-foreground mt-1">Manage and track all your invoices</p>
+          <h2 className="text-2xl font-bold tracking-tight">Factures</h2>
+          <p className="text-muted-foreground mt-1">Gérez et suivez toutes vos factures</p>
         </div>
         <Button onClick={() => setShowInvoiceForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white gap-2 self-start">
           <Plus className="h-4 w-4" />
-          New Invoice
+          Nouvelle facture
         </Button>
       </div>
 
@@ -148,7 +148,7 @@ export function InvoiceList() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search invoices..."
+                placeholder="Rechercher des factures..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -157,7 +157,7 @@ export function InvoiceList() {
             <Select value={invoiceFilter} onValueChange={setInvoiceFilter}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder="Filtrer par statut" />
               </SelectTrigger>
               <SelectContent>
                 {statusFilters.map((f) => (
@@ -198,14 +198,14 @@ export function InvoiceList() {
           {filteredInvoices.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <FileText className="h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-medium">No invoices found</h3>
+              <h3 className="mt-4 text-lg font-medium">Aucune facture trouvée</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                {searchQuery ? 'Try adjusting your search query' : 'Create your first invoice to get started'}
+                {searchQuery ? 'Essayez d\'ajuster votre recherche' : 'Créez votre première facture pour commencer'}
               </p>
               {!searchQuery && (
                 <Button onClick={() => setShowInvoiceForm(true)} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Invoice
+                  Créer une facture
                 </Button>
               )}
             </div>
@@ -213,12 +213,12 @@ export function InvoiceList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Invoice</TableHead>
+                  <TableHead>Facture</TableHead>
                   <TableHead>Client</TableHead>
-                  <TableHead className="hidden md:table-cell">Issue Date</TableHead>
-                  <TableHead className="hidden md:table-cell">Due Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="hidden md:table-cell">Date d'émission</TableHead>
+                  <TableHead className="hidden md:table-cell">Date d'échéance</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead className="text-right">Montant</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -250,34 +250,34 @@ export function InvoiceList() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); selectInvoice(invoice.id); }}>
                             <Eye className="h-4 w-4 mr-2" />
-                            View Details
+                            Voir les détails
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingInvoice(invoice.id); }}>
                             <Pencil className="h-4 w-4 mr-2" />
-                            Edit
+                            Modifier
                           </DropdownMenuItem>
                           {(invoice.status === 'draft' || invoice.status === 'pending') && (
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(invoice.id, 'sent'); }}>
                               <Send className="h-4 w-4 mr-2" />
-                              Mark as Sent
+                              Marquer comme envoyée
                             </DropdownMenuItem>
                           )}
                           {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(invoice.id, 'paid'); }}>
                               <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Mark as Paid
+                              Marquer comme payée
                             </DropdownMenuItem>
                           )}
                           {invoice.status !== 'overdue' && invoice.status !== 'cancelled' && invoice.status !== 'paid' && (
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(invoice.id, 'overdue'); }}>
                               <XCircle className="h-4 w-4 mr-2" />
-                              Mark as Overdue
+                              Marquer en retard
                             </DropdownMenuItem>
                           )}
                           {invoice.status !== 'cancelled' && (
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(invoice.id, 'cancelled'); }}>
                               <XCircle className="h-4 w-4 mr-2" />
-                              Cancel Invoice
+                              Annuler la facture
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
@@ -286,7 +286,7 @@ export function InvoiceList() {
                             className="text-red-600 focus:text-red-600"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
+                            Supprimer
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -303,14 +303,14 @@ export function InvoiceList() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Invoice</DialogTitle>
+            <DialogTitle>Supprimer la facture</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this invoice? This action cannot be undone.
+              Êtes-vous sûr de vouloir supprimer cette facture ? Cette action est irréversible.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={handleDelete}>Supprimer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

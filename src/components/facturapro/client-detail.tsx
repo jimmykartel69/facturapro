@@ -50,9 +50,9 @@ export function ClientDetail() {
   if (!client) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-muted-foreground">Client not found.</p>
+        <p className="text-muted-foreground">Client introuvable.</p>
         <Button variant="outline" onClick={() => selectClient(null)} className="mt-4">
-          Back to Clients
+          Retour aux clients
         </Button>
       </div>
     );
@@ -89,7 +89,7 @@ export function ClientDetail() {
           </div>
         </div>
         <Button variant="outline" onClick={() => setEditingClient(client.id)} className="gap-1.5">
-          Edit Client
+          Modifier le client
         </Button>
       </div>
 
@@ -97,25 +97,25 @@ export function ClientDetail() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Total Revenue</p>
+            <p className="text-xs text-muted-foreground">Chiffre d'affaires</p>
             <p className="text-xl font-bold text-emerald-600 mt-1">{formatCurrency(stats.totalRevenue)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Outstanding</p>
+            <p className="text-xs text-muted-foreground">En attente</p>
             <p className="text-xl font-bold text-amber-600 mt-1">{formatCurrency(stats.outstanding)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Paid Invoices</p>
+            <p className="text-xs text-muted-foreground">Factures payées</p>
             <p className="text-xl font-bold text-blue-600 mt-1">{stats.paidCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Overdue</p>
+            <p className="text-xs text-muted-foreground">En retard</p>
             <p className="text-xl font-bold text-red-600 mt-1">{stats.overdueCount}</p>
           </CardContent>
         </Card>
@@ -125,7 +125,7 @@ export function ClientDetail() {
         {/* Client Info */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Contact Information</CardTitle>
+            <CardTitle className="text-base">Coordonnées</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-3">
@@ -152,8 +152,8 @@ export function ClientDetail() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base">Invoice History</CardTitle>
-                <CardDescription>{clientInvoices.length} invoices total</CardDescription>
+                <CardTitle className="text-base">Historique des factures</CardTitle>
+                <CardDescription>{clientInvoices.length} factures au total</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -161,16 +161,16 @@ export function ClientDetail() {
             {clientInvoices.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <FileText className="h-10 w-10 text-muted-foreground/50" />
-                <p className="mt-3 text-sm text-muted-foreground">No invoices for this client</p>
+                <p className="mt-3 text-sm text-muted-foreground">Aucune facture pour ce client</p>
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Invoice</TableHead>
+                    <TableHead>Facture</TableHead>
                     <TableHead className="hidden sm:table-cell">Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="text-right">Montant</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

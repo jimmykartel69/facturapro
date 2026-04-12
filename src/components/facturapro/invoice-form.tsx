@@ -123,9 +123,9 @@ export function InvoiceForm({ open, onClose, editingInvoice }: InvoiceFormProps)
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editingInvoice ? 'Edit Invoice' : 'Create New Invoice'}</DialogTitle>
+          <DialogTitle>{editingInvoice ? 'Modifier la facture' : 'Créer une nouvelle facture'}</DialogTitle>
           <DialogDescription>
-            {editingInvoice ? 'Update invoice details and line items.' : 'Fill in the details to create a new invoice.'}
+            {editingInvoice ? 'Modifiez les détails et les lignes de la facture.' : 'Remplissez les détails pour créer une nouvelle facture.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -136,7 +136,7 @@ export function InvoiceForm({ open, onClose, editingInvoice }: InvoiceFormProps)
             {clients.length > 0 && (
               <Select value={selectedClientId} onValueChange={handleClientSelect}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a client..." />
+                  <SelectValue placeholder="Sélectionner un client..." />
                 </SelectTrigger>
                 <SelectContent>
                   {clients.map((client) => (
@@ -149,22 +149,22 @@ export function InvoiceForm({ open, onClose, editingInvoice }: InvoiceFormProps)
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="clientName" className="text-xs text-muted-foreground">Client Name *</Label>
+                <Label htmlFor="clientName" className="text-xs text-muted-foreground">Nom du client *</Label>
                 <Input
                   id="clientName"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Enter client name"
+                  placeholder="Nom du client"
                 />
               </div>
               <div>
-                <Label htmlFor="clientEmail" className="text-xs text-muted-foreground">Client Email *</Label>
+                <Label htmlFor="clientEmail" className="text-xs text-muted-foreground">E-mail du client *</Label>
                 <Input
                   id="clientEmail"
                   type="email"
                   value={clientEmail}
                   onChange={(e) => setClientEmail(e.target.value)}
-                  placeholder="client@example.com"
+                  placeholder="client@exemple.com"
                 />
               </div>
             </div>
@@ -173,26 +173,26 @@ export function InvoiceForm({ open, onClose, editingInvoice }: InvoiceFormProps)
           {/* Dates & Status */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <Label htmlFor="issueDate" className="text-xs text-muted-foreground">Issue Date</Label>
+              <Label htmlFor="issueDate" className="text-xs text-muted-foreground">Date d'émission</Label>
               <Input id="issueDate" type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
             </div>
             <div>
-              <Label htmlFor="dueDate" className="text-xs text-muted-foreground">Due Date</Label>
+              <Label htmlFor="dueDate" className="text-xs text-muted-foreground">Date d'échéance</Label>
               <Input id="dueDate" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Label className="text-xs text-muted-foreground">Statut</Label>
               <Select value={status} onValueChange={(v) => setStatus(v as InvoiceStatus)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="sent">Sent</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="overdue">Overdue</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="draft">Brouillon</SelectItem>
+                  <SelectItem value="sent">Envoyée</SelectItem>
+                  <SelectItem value="pending">En attente</SelectItem>
+                  <SelectItem value="paid">Payée</SelectItem>
+                  <SelectItem value="overdue">En retard</SelectItem>
+                  <SelectItem value="cancelled">Annulée</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -201,10 +201,10 @@ export function InvoiceForm({ open, onClose, editingInvoice }: InvoiceFormProps)
           {/* Line Items */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Line Items</Label>
+              <Label className="text-sm font-medium">Lignes de facturation</Label>
               <Button type="button" variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs">
                 <Plus className="h-3.5 w-3.5" />
-                Add Item
+                Ajouter une ligne
               </Button>
             </div>
             <div className="space-y-2">
@@ -215,12 +215,12 @@ export function InvoiceForm({ open, onClose, editingInvoice }: InvoiceFormProps)
                     <Input
                       value={item.description}
                       onChange={(e) => updateItem(index, 'description', e.target.value)}
-                      placeholder="Item description"
+                      placeholder="Description de la prestation"
                       className="h-9"
                     />
                   </div>
                   <div>
-                    {index === 0 && <Label className="text-xs text-muted-foreground">Qty</Label>}
+                    {index === 0 && <Label className="text-xs text-muted-foreground">Qté</Label>}
                     <Input
                       type="number"
                       min="0"
@@ -230,7 +230,7 @@ export function InvoiceForm({ open, onClose, editingInvoice }: InvoiceFormProps)
                     />
                   </div>
                   <div>
-                    {index === 0 && <Label className="text-xs text-muted-foreground">Unit Price</Label>}
+                    {index === 0 && <Label className="text-xs text-muted-foreground">Prix unitaire</Label>}
                     <Input
                       type="number"
                       min="0"
@@ -264,7 +264,7 @@ export function InvoiceForm({ open, onClose, editingInvoice }: InvoiceFormProps)
           {/* Tax & Notes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="tax" className="text-xs text-muted-foreground">Tax Rate (%)</Label>
+              <Label htmlFor="tax" className="text-xs text-muted-foreground">Taux de TVA (%)</Label>
               <Input id="tax" type="number" min="0" max="100" value={tax} onChange={(e) => setTax(Number(e.target.value))} className="w-24" />
             </div>
             <div>
@@ -273,7 +273,7 @@ export function InvoiceForm({ open, onClose, editingInvoice }: InvoiceFormProps)
                 id="notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Additional notes..."
+                placeholder="Notes supplémentaires..."
                 rows={2}
               />
             </div>
@@ -282,11 +282,11 @@ export function InvoiceForm({ open, onClose, editingInvoice }: InvoiceFormProps)
           {/* Totals */}
           <div className="bg-slate-50 rounded-lg p-4 space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
+              <span className="text-muted-foreground">Sous-total</span>
               <span className="font-medium">{formatCurrency(subtotal)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax ({tax}%)</span>
+              <span className="text-muted-foreground">TVA ({tax}%)</span>
               <span className="font-medium">{formatCurrency(taxAmount)}</span>
             </div>
             <div className="border-t pt-2 flex justify-between">
@@ -297,13 +297,13 @@ export function InvoiceForm({ open, onClose, editingInvoice }: InvoiceFormProps)
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
           <Button
             onClick={handleSubmit}
             disabled={!isValid}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {editingInvoice ? 'Update Invoice' : 'Create Invoice'}
+            {editingInvoice ? 'Mettre à jour' : 'Créer la facture'}
           </Button>
         </DialogFooter>
       </DialogContent>

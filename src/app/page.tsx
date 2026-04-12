@@ -71,13 +71,13 @@ export default function FacturaProApp() {
 
       {/* Dialogs - key prop forces remount when editing entity changes */}
       <InvoiceForm
-        key={editingInvoiceId || 'new'}
+        key={editingInvoiceId || 'new-invoice'}
         open={showInvoiceForm}
         onClose={() => setShowInvoiceForm(false)}
         editingInvoice={editingInvoice}
       />
       <ClientForm
-        key={editingClientId || 'new'}
+        key={editingClientId || 'new-client'}
         open={showClientForm}
         onClose={() => setShowClientForm(false)}
         editingClient={editingClient}

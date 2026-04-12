@@ -163,7 +163,7 @@ export function useMonthlyRevenue() {
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthStr = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    const monthStr = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
     const monthInvoices = invoices.filter((inv) => {
       const invDate = new Date(inv.issueDate);
       return invDate.getMonth() === d.getMonth() && invDate.getFullYear() === d.getFullYear() && inv.status === 'paid';
