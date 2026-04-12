@@ -1,17 +1,25 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   DollarSign,
-  Clock,
-  CheckCircle2,
+  FileText,
   AlertTriangle,
+  Users,
   Plus,
-  BarChart3,
   TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
+  Loader2,
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   BarChart,
   Bar,
@@ -21,125 +29,80 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { useAppStore, useInvoiceStats, useMonthlyRevenue } from '@/lib/store';
-import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
-import { formatCurrency, formatDate, getStatusBadge } from '@/lib/helpers';
-
-const chartConfig = {
-  revenue: { label: 'Revenus', color: '#3b82f6' },
-};
+import { useAppStore } from '@/lib/store';
+import { formatCurrency, getDevisStatusBadge, getInvoiceStatusBadge, calculateTotals } from '@/lib/helpers';
+import type { DevisStatus, InvoiceStatus } from '@/lib/types';
 
 export function Dashboard() {
-  const { invoices, setPage, setShowInvoiceForm, selectInvoice } = useAppStore();
-  const stats = useInvoiceStats();
-  const monthlyRevenue = useMonthlyRevenue();
+  const {
+    dashboardData,
+    fetchDashboard,
+    setShowDevisForm,
+    setShowInvoiceForm,
+    setSelectedDevisId,
+    setSelectedInvoiceId,
+    setPage,
+  } = useAppStore();
+  const [loading, setLoading] = useState(true);
+  const fetchIdRef = useRef(0);
 
-  const recentInvoices = [...invoices].sort((a, b) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()).slice(0, 5);
+  useEffect(() => {
+    const id = ++fetchIdRef.current;
+    fetchDashboard().then(() => {
+      if (id === fetchIdRef.current) setLoading(false);
+    });
+    return () => { fetchIdRef.current++; };
+  }, [fetchDashboard]);
+
+  if (loading || !dashboardData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   const kpis = [
-    {
-      title: 'Chiffre d\'affaires',
-      value: formatCurrency(stats.totalRevenue),
-      description: 'Factures payées',
-      icon: DollarSign,
-      trend: '+12,5%',
-      trendUp: true,
-      color: 'text-emerald-600',
-      bg: 'bg-emerald-50',
-      iconBg: 'bg-emerald-100',
-    },
-    {
-      title: 'Factures en attente',
-      value: stats.pendingCount.toString(),
-      description: formatCurrency(stats.pendingAmount) + ' au total',
-      icon: Clock,
-      trend: stats.pendingCount > 0 ? 'Action requise' : 'Tout est en ordre',
-      trendUp: false,
-      color: 'text-amber-600',
-      bg: 'bg-amber-50',
-      iconBg: 'bg-amber-100',
-    },
-    {
-      title: 'Factures payées',
-      value: stats.paidCount.toString(),
-      description: 'Encaissement réussi',
-      icon: CheckCircle2,
-      trend: '+3 ce mois',
-      trendUp: true,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
-      iconBg: 'bg-blue-100',
-    },
-    {
-      title: 'En retard',
-      value: stats.overdueCount.toString(),
-      description: formatCurrency(stats.overdueAmount) + ' en risque',
-      icon: AlertTriangle,
-      trend: stats.overdueCount > 0 ? 'Attention requise' : 'Aucune',
-      trendUp: false,
-      color: 'text-red-600',
-      bg: 'bg-red-50',
-      iconBg: 'bg-red-100',
-    },
+    { title: 'CA du mois', value: formatCurrency(dashboardData.currentMonthRevenue), icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { title: 'Devis en cours', value: dashboardData.devisCount.toString(), icon: FileText, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { title: 'Factures impayées', value: dashboardData.unpaidInvoices.toString(), subtitle: formatCurrency(dashboardData.unpaidAmount), icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
+    { title: 'Clients actifs', value: dashboardData.activeClients.toString(), icon: Users, color: 'text-violet-600', bg: 'bg-violet-50' },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Tableau de bord</h2>
-        <p className="text-muted-foreground mt-1">Vue d\'ensemble de votre activité de facturation</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Tableau de bord</h2>
+          <p className="text-muted-foreground text-sm">Vue d&apos;ensemble de votre activité</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => { setShowDevisForm(true); setSelectedDevisId(null); }} size="sm">
+            <Plus className="w-4 h-4 mr-1.5" />
+            Créer un devis
+          </Button>
+          <Button variant="outline" onClick={() => { setShowInvoiceForm(true); setSelectedInvoiceId(null); }} size="sm">
+            <Plus className="w-4 h-4 mr-1.5" />
+            Créer une facture
+          </Button>
+        </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="flex flex-wrap gap-3">
-        <Button onClick={() => setShowInvoiceForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
-          <Plus className="h-4 w-4" />
-          Créer une facture
-        </Button>
-        <Button variant="outline" onClick={() => setPage('reports')} className="gap-2">
-          <BarChart3 className="h-4 w-4" />
-          Voir les rapports
-        </Button>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi) => {
           const Icon = kpi.icon;
           return (
-            <Card key={kpi.title} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">{kpi.title}</p>
-                    <p className="text-2xl font-bold tracking-tight">{kpi.value}</p>
+            <Card key={kpi.title}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{kpi.title}</p>
+                    <p className="text-2xl font-bold mt-1">{kpi.value}</p>
+                    {kpi.subtitle && <p className="text-xs text-muted-foreground mt-0.5">{kpi.subtitle}</p>}
                   </div>
-                  <div className={`rounded-lg p-2.5 ${kpi.iconBg}`}>
-                    <Icon className={`h-5 w-5 ${kpi.color}`} />
+                  <div className={`w-10 h-10 rounded-lg ${kpi.bg} flex items-center justify-center`}>
+                    <Icon className={`w-5 h-5 ${kpi.color}`} />
                   </div>
-                </div>
-                <div className="flex items-center gap-1 mt-3">
-                  {kpi.trendUp ? (
-                    <ArrowUpRight className="h-3.5 w-3.5 text-emerald-600" />
-                  ) : (
-                    <ArrowDownRight className="h-3.5 w-3.5 text-red-500" />
-                  )}
-                  <span className={`text-xs font-medium ${kpi.trendUp ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {kpi.trend}
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-1">{kpi.description}</span>
                 </div>
               </CardContent>
             </Card>
@@ -147,126 +110,113 @@ export function Dashboard() {
         })}
       </div>
 
-      {/* Chart & Recent Invoices */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Revenue Chart */}
-        <Card className="xl:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
-              Aperçu des revenus
-            </CardTitle>
-            <CardDescription>Revenus mensuels des factures payées (6 derniers mois)</CardDescription>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" />
+            Chiffre d&apos;affaires mensuel
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dashboardData.monthlyRevenue}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  formatter={(value: number) => [formatCurrency(value), 'CA']}
+                  labelStyle={{ fontWeight: 600 }}
+                  contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb' }}
+                />
+                <Bar dataKey="revenue" fill="#1a1a2e" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">Dernières factures</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setPage('invoices')} className="text-xs">Voir tout</Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <BarChart data={monthlyRevenue} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                <XAxis
-                  dataKey="month"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: 'var(--muted-foreground)' }}
-                />
-                <YAxis
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: 'var(--muted-foreground)' }}
-                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k €`}
-                />
-                <Tooltip content={<ChartTooltipContent />} />
-                <Bar
-                  dataKey="revenue"
-                  fill="var(--color-revenue)"
-                  radius={[6, 6, 0, 0]}
-                  maxBarSize={50}
-                />
-              </BarChart>
-            </ChartContainer>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>N°</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead className="text-right">Montant</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dashboardData.recentInvoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-6">Aucune facture</TableCell>
+                  </TableRow>
+                ) : (
+                  dashboardData.recentInvoices.map((inv) => {
+                    const totals = calculateTotals(inv.items);
+                    return (
+                      <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedInvoiceId(inv.id); setPage('invoices'); }}>
+                        <TableCell className="font-mono text-xs">{inv.number}</TableCell>
+                        <TableCell className="text-sm">{inv.client.company || inv.client.name}</TableCell>
+                        <TableCell>{getInvoiceStatusBadge(inv.status as InvoiceStatus)}</TableCell>
+                        <TableCell className="text-right text-sm font-medium">{formatCurrency(totals.totalTtc)}</TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
 
-        {/* Recent Invoices */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Factures récentes</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setPage('invoices')} className="text-xs text-blue-600 hover:text-blue-700">
-                Tout voir
-              </Button>
+              <CardTitle className="text-base font-semibold">Derniers devis</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setPage('devis')} className="text-xs">Voir tout</Button>
             </div>
           </CardHeader>
-          <CardContent className="px-2">
-            <div className="space-y-1">
-              {recentInvoices.map((invoice) => (
-                <button
-                  key={invoice.id}
-                  onClick={() => {
-                    selectInvoice(invoice.id);
-                    setPage('invoices');
-                  }}
-                  className="w-full text-left rounded-lg p-3 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{invoice.number}</span>
-                    {getStatusBadge(invoice.status)}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 truncate">{invoice.clientName}</p>
-                  <p className="text-sm font-semibold mt-1">{formatCurrency(invoice.total)}</p>
-                </button>
-              ))}
-            </div>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>N°</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead className="text-right">Montant</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dashboardData.recentDevis.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-6">Aucun devis</TableCell>
+                  </TableRow>
+                ) : (
+                  dashboardData.recentDevis.map((d) => {
+                    const totals = calculateTotals(d.items);
+                    return (
+                      <TableRow key={d.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedDevisId(d.id); setPage('devis'); }}>
+                        <TableCell className="font-mono text-xs">{d.number}</TableCell>
+                        <TableCell className="text-sm">{d.client.company || d.client.name}</TableCell>
+                        <TableCell>{getDevisStatusBadge(d.status as DevisStatus)}</TableCell>
+                        <TableCell className="text-right text-sm font-medium">{formatCurrency(totals.totalTtc)}</TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </div>
-
-      {/* Recent Invoices Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Toute l'activité récente</CardTitle>
-              <CardDescription>Dernières factures tous statuts confondus</CardDescription>
-            </div>
-            <Badge variant="secondary" className="text-xs">{invoices.length} au total</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Facture</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Échéance</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead className="text-right">Montant</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentInvoices.map((invoice) => (
-                <TableRow
-                  key={invoice.id}
-                  className="cursor-pointer"
-                  onClick={() => {
-                    selectInvoice(invoice.id);
-                    setPage('invoices');
-                  }}
-                >
-                  <TableCell className="font-medium">{invoice.number}</TableCell>
-                  <TableCell>{invoice.clientName}</TableCell>
-                  <TableCell>{formatDate(invoice.issueDate)}</TableCell>
-                  <TableCell>{formatDate(invoice.dueDate)}</TableCell>
-                  <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(invoice.total)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
   );
 }

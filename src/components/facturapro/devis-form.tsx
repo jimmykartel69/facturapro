@@ -22,9 +22,9 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useAppStore } from '@/lib/store';
 import { formatCurrency, calculateTotals } from '@/lib/helpers';
-import type { Invoice, InvoiceItem } from '@/lib/types';
+import type { Devis, DevisItem } from '@/lib/types';
 
-const emptyItem = (): InvoiceItem => ({
+const emptyItem = (): DevisItem => ({
   description: '',
   quantity: 1,
   unit: 'unité',
@@ -32,37 +32,37 @@ const emptyItem = (): InvoiceItem => ({
   tvaRate: 20,
 });
 
-interface InvoiceFormProps {
-  editingInvoiceId: string | null;
+interface DevisFormProps {
+  editingDevisId: string | null;
 }
 
-export function InvoiceForm({ editingInvoiceId }: InvoiceFormProps) {
+export function DevisForm({ editingDevisId }: DevisFormProps) {
   const {
-    showInvoiceForm,
+    showDevisForm,
     clients,
-    invoices,
-    setShowInvoiceForm,
-    createInvoice,
-    updateInvoice,
+    devis,
+    setShowDevisForm,
+    createDevis,
+    updateDevis,
   } = useAppStore();
 
-  const existing = editingInvoiceId ? invoices.find((i: Invoice) => i.id === editingInvoiceId) : null;
+  const existing = editingDevisId ? devis.find((d: Devis) => d.id === editingDevisId) : null;
 
   const d = new Date();
   d.setDate(d.getDate() + 30);
 
   const [clientId, setClientId] = useState(() => existing?.clientId || '');
-  const [items, setItems] = useState<InvoiceItem[]>(
-    () => existing?.items.length ? existing.items.map((i: InvoiceItem) => ({ ...i })) : [emptyItem()]
+  const [items, setItems] = useState<DevisItem[]>(
+    () => existing?.items.length ? existing.items.map((i: DevisItem) => ({ ...i })) : [emptyItem()]
   );
   const [notes, setNotes] = useState(() => existing?.notes || '');
   const [globalDiscount, setGlobalDiscount] = useState(() => existing?.globalDiscount || 0);
-  const [dueDate, setDueDate] = useState(
-    () => existing?.dueDate ? existing.dueDate.split('T')[0] : d.toISOString().split('T')[0]
+  const [validUntil, setValidUntil] = useState(
+    () => existing?.validUntil ? existing.validUntil.split('T')[0] : d.toISOString().split('T')[0]
   );
   const [loading, setLoading] = useState(false);
 
-  const updateItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
+  const updateItem = (index: number, field: keyof DevisItem, value: string | number) => {
     setItems((prev) => {
       const copy = [...prev];
       copy[index] = { ...copy[index], [field]: value };
@@ -95,24 +95,24 @@ export function InvoiceForm({ editingInvoiceId }: InvoiceFormProps) {
       })),
       notes: notes || null,
       globalDiscount: Number(globalDiscount),
-      dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      validUntil: validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     };
     let err: string | null;
-    if (editingInvoiceId) {
-      err = await updateInvoice(editingInvoiceId, data);
+    if (editingDevisId) {
+      err = await updateDevis(editingDevisId, data);
     } else {
-      err = await createInvoice(data);
+      err = await createDevis(data);
     }
     setLoading(false);
     if (err) alert(err);
-    else setShowInvoiceForm(false);
+    else setShowDevisForm(false);
   };
 
   return (
-    <Dialog open={showInvoiceForm} onOpenChange={(open) => { if (!open) setShowInvoiceForm(false); }}>
+    <Dialog open={showDevisForm} onOpenChange={(open) => { if (!open) setShowDevisForm(false); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editingInvoiceId ? 'Modifier la facture' : 'Nouvelle facture'}</DialogTitle>
+          <DialogTitle>{editingDevisId ? 'Modifier le devis' : 'Nouveau devis'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
@@ -195,20 +195,20 @@ export function InvoiceForm({ editingInvoiceId }: InvoiceFormProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="inv-due">Date d&apos;échéance</Label>
-              <Input id="inv-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />
+              <Label htmlFor="devis-valid">Valide jusqu&apos;au</Label>
+              <Input id="devis-valid" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="inv-notes">Notes</Label>
-              <Input id="inv-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes ou conditions" />
+              <Label htmlFor="devis-notes">Notes</Label>
+              <Input id="devis-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes ou conditions" />
             </div>
           </div>
 
           <DialogFooter className="gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setShowInvoiceForm(false)}>Annuler</Button>
+            <Button type="button" variant="outline" onClick={() => setShowDevisForm(false)}>Annuler</Button>
             <Button type="submit" disabled={loading || !clientId || items.length === 0}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {editingInvoiceId ? 'Mettre à jour' : 'Créer la facture'}
+              {editingDevisId ? 'Mettre à jour' : 'Créer le devis'}
             </Button>
           </DialogFooter>
         </form>

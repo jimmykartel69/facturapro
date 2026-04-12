@@ -7,7 +7,7 @@ import {
   Eye,
   Pencil,
   Trash2,
-  Receipt,
+  FileText,
   Loader2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,27 +32,27 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAppStore } from '@/lib/store';
-import { formatDate, formatCurrency, getInvoiceStatusBadge, calculateTotals } from '@/lib/helpers';
-import type { InvoiceStatus } from '@/lib/types';
+import { formatDate, formatCurrency, getDevisStatusBadge, calculateTotals } from '@/lib/helpers';
+import type { DevisStatus } from '@/lib/types';
 
 const statusFilters: { label: string; value: string }[] = [
-  { label: 'Toutes', value: '' },
+  { label: 'Tous', value: '' },
   { label: 'Brouillon', value: 'draft' },
-  { label: 'Envoyée', value: 'sent' },
-  { label: 'Payée', value: 'paid' },
-  { label: 'En retard', value: 'overdue' },
-  { label: 'Annulée', value: 'cancelled' },
+  { label: 'Envoyé', value: 'sent' },
+  { label: 'Accepté', value: 'accepted' },
+  { label: 'Refusé', value: 'refused' },
+  { label: 'Converti', value: 'converted' },
 ];
 
-export function InvoiceList() {
+export function DevisList() {
   const {
-    invoices,
-    selectedInvoiceId,
-    fetchInvoices,
-    setSelectedInvoiceId,
-    setShowInvoiceForm,
-    setEditingInvoiceId,
-    deleteInvoice,
+    devis,
+    selectedDevisId,
+    fetchDevis,
+    setSelectedDevisId,
+    setShowDevisForm,
+    setEditingDevisId,
+    deleteDevis,
   } = useAppStore();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -63,16 +63,16 @@ export function InvoiceList() {
 
   useEffect(() => {
     const id = ++fetchIdRef.current;
-    fetchInvoices(statusFilter || undefined, search).then(() => {
+    fetchDevis(statusFilter || undefined, search).then(() => {
       if (id === fetchIdRef.current) setLoading(false);
     });
     return () => { fetchIdRef.current++; };
-  }, [fetchInvoices, statusFilter, search]);
+  }, [fetchDevis, statusFilter, search]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
-    const err = await deleteInvoice(deleteId);
+    const err = await deleteDevis(deleteId);
     setDeleting(false);
     if (err) alert(err);
     else setDeleteId(null);
@@ -90,12 +90,12 @@ export function InvoiceList() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Factures</h2>
-          <p className="text-muted-foreground text-sm">{invoices.length} facture(s)</p>
+          <h2 className="text-2xl font-bold tracking-tight">Devis</h2>
+          <p className="text-muted-foreground text-sm">{devis.length} devis</p>
         </div>
-        <Button onClick={() => { setShowInvoiceForm(true); }} size="sm">
+        <Button onClick={() => { setShowDevisForm(true); }} size="sm">
           <Plus className="w-4 h-4 mr-1.5" />
-          Nouvelle facture
+          Nouveau devis
         </Button>
       </div>
 
@@ -115,13 +115,13 @@ export function InvoiceList() {
 
       <Card>
         <CardContent className="p-0">
-          {invoices.length === 0 ? (
+          {devis.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
-              <Receipt className="w-12 h-12 text-muted-foreground/40 mb-4" />
-              <p className="text-muted-foreground">Aucune facture trouvée</p>
-              <Button variant="outline" size="sm" className="mt-4" onClick={() => setShowInvoiceForm(true)}>
+              <FileText className="w-12 h-12 text-muted-foreground/40 mb-4" />
+              <p className="text-muted-foreground">Aucun devis trouvé</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={() => setShowDevisForm(true)}>
                 <Plus className="w-4 h-4 mr-1.5" />
-                Créer une facture
+                Créer un devis
               </Button>
             </div>
           ) : (
@@ -132,39 +132,39 @@ export function InvoiceList() {
                     <TableHead>N°</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Échéance</TableHead>
+                    <TableHead>Validité</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Montant TTC</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map((inv) => {
-                    const totals = calculateTotals(inv.items);
+                  {devis.map((d) => {
+                    const totals = calculateTotals(d.items);
                     return (
-                      <TableRow key={inv.id} className={selectedInvoiceId === inv.id ? 'bg-muted/50' : ''}>
-                        <TableCell className="font-mono text-xs font-medium">{inv.number}</TableCell>
+                      <TableRow key={d.id} className={selectedDevisId === d.id ? 'bg-muted/50' : ''}>
+                        <TableCell className="font-mono text-xs font-medium">{d.number}</TableCell>
                         <TableCell>
                           <div>
-                            <p className="text-sm font-medium">{inv.client.company || inv.client.name}</p>
-                            {inv.client.company && <p className="text-xs text-muted-foreground">{inv.client.name}</p>}
+                            <p className="text-sm font-medium">{d.client.company || d.client.name}</p>
+                            {d.client.company && <p className="text-xs text-muted-foreground">{d.client.name}</p>}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm">{formatDate(inv.issueDate)}</TableCell>
-                        <TableCell className="text-sm">{formatDate(inv.dueDate)}</TableCell>
-                        <TableCell>{getInvoiceStatusBadge(inv.status as InvoiceStatus)}</TableCell>
+                        <TableCell className="text-sm">{formatDate(d.issueDate)}</TableCell>
+                        <TableCell className="text-sm">{formatDate(d.validUntil)}</TableCell>
+                        <TableCell>{getDevisStatusBadge(d.status as DevisStatus)}</TableCell>
                         <TableCell className="text-right text-sm font-medium">{formatCurrency(totals.totalTtc)}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedInvoiceId(inv.id === selectedInvoiceId ? null : inv.id)} title="Voir">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedDevisId(d.id === selectedDevisId ? null : d.id)} title="Voir">
                               <Eye className="w-4 h-4" />
                             </Button>
-                            {inv.status !== 'paid' && (
+                            {d.status !== 'converted' && (
                               <>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingInvoiceId(inv.id)} title="Modifier">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingDevisId(d.id)} title="Modifier">
                                   <Pencil className="w-4 h-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => setDeleteId(inv.id)} title="Supprimer">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => setDeleteId(d.id)} title="Supprimer">
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               </>
@@ -184,8 +184,8 @@ export function InvoiceList() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cette facture ?</AlertDialogTitle>
-            <AlertDialogDescription>Cette action est irréversible. Les factures payées ne peuvent pas être supprimées.</AlertDialogDescription>
+            <AlertDialogTitle>Supprimer ce devis ?</AlertDialogTitle>
+            <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Annuler</AlertDialogCancel>

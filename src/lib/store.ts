@@ -1,188 +1,443 @@
 import { create } from 'zustand';
-import { Invoice, Client, LineItem, Page, InvoiceStatus } from './types';
-import {
-  loadInvoices,
-  saveInvoices,
-  loadClients,
-  saveClients,
-  generateId,
-  generateInvoiceNumber,
-} from './data';
+import { Page, Client, Devis, Invoice, DashboardData, Settings, DevisStatus, InvoiceStatus } from './types';
 
 interface AppState {
+  // Auth
+  user: { id: string; email: string; name: string; firstName: string } | null;
+  isAuthenticated: boolean;
+  authLoading: boolean;
+
   // Navigation
   currentPage: Page;
   sidebarOpen: boolean;
   mobileSidebarOpen: boolean;
 
-  // Data
-  invoices: Invoice[];
-  clients: Client[];
-  initialized: boolean;
-
-  // UI State
-  selectedInvoiceId: string | null;
+  // UI state
   selectedClientId: string | null;
-  showInvoiceForm: boolean;
+  selectedDevisId: string | null;
+  selectedInvoiceId: string | null;
   showClientForm: boolean;
-  editingInvoiceId: string | null;
+  showDevisForm: boolean;
+  showInvoiceForm: boolean;
   editingClientId: string | null;
-  invoiceFilter: string;
-  searchQuery: string;
+  editingDevisId: string | null;
+  editingInvoiceId: string | null;
 
-  // Actions - Navigation
+  // Data
+  clients: Client[];
+  devis: Devis[];
+  invoices: Invoice[];
+  dashboardData: DashboardData | null;
+  settings: Settings | null;
+
+  // Auth actions
+  fetchSession: () => Promise<void>;
+  login: (email: string, password: string) => Promise<string | null>;
+  register: (name: string, firstName: string, email: string, password: string) => Promise<string | null>;
+  logout: () => Promise<void>;
+
+  // Data fetch actions
+  fetchClients: (search?: string) => Promise<void>;
+  fetchDevis: (status?: string, search?: string) => Promise<void>;
+  fetchInvoices: (status?: string, search?: string) => Promise<void>;
+  fetchDashboard: () => Promise<void>;
+  fetchSettings: () => Promise<void>;
+
+  // CRUD actions
+  createClient: (data: Record<string, unknown>) => Promise<string | null>;
+  updateClient: (id: string, data: Record<string, unknown>) => Promise<string | null>;
+  deleteClient: (id: string) => Promise<string | null>;
+
+  createDevis: (data: Record<string, unknown>) => Promise<string | null>;
+  updateDevis: (id: string, data: Record<string, unknown>) => Promise<string | null>;
+  deleteDevis: (id: string) => Promise<string | null>;
+  convertDevisToInvoice: (devisId: string) => Promise<string | null>;
+
+  createInvoice: (data: Record<string, unknown>) => Promise<string | null>;
+  updateInvoice: (id: string, data: Record<string, unknown>) => Promise<string | null>;
+  deleteInvoice: (id: string) => Promise<string | null>;
+  updateInvoiceStatus: (id: string, status: InvoiceStatus) => Promise<string | null>;
+  updateDevisStatus: (id: string, status: DevisStatus) => Promise<string | null>;
+
+  updateSettings: (data: Record<string, unknown>) => Promise<string | null>;
+
+  // Navigation actions
   setPage: (page: Page) => void;
-  setSidebarOpen: (open: boolean) => void;
+  toggleSidebar: () => void;
   setMobileSidebarOpen: (open: boolean) => void;
-
-  // Actions - Data
-  initialize: () => void;
-  addInvoice: (invoice: Omit<Invoice, 'id' | 'number'>) => Invoice;
-  updateInvoice: (id: string, updates: Partial<Invoice>) => void;
-  deleteInvoice: (id: string) => void;
-  updateInvoiceStatus: (id: string, status: InvoiceStatus) => void;
-  addClient: (client: Omit<Client, 'id'>) => Client;
-  updateClient: (id: string, updates: Partial<Client>) => void;
-  deleteClient: (id: string) => void;
-
-  // Actions - UI
-  selectInvoice: (id: string | null) => void;
-  selectClient: (id: string | null) => void;
-  setShowInvoiceForm: (show: boolean) => void;
+  setSelectedClientId: (id: string | null) => void;
+  setSelectedDevisId: (id: string | null) => void;
+  setSelectedInvoiceId: (id: string | null) => void;
   setShowClientForm: (show: boolean) => void;
-  setEditingInvoice: (id: string | null) => void;
-  setEditingClient: (id: string | null) => void;
-  setInvoiceFilter: (filter: string) => void;
-  setSearchQuery: (query: string) => void;
+  setShowDevisForm: (show: boolean) => void;
+  setShowInvoiceForm: (show: boolean) => void;
+  setEditingClientId: (id: string | null) => void;
+  setEditingDevisId: (id: string | null) => void;
+  setEditingInvoiceId: (id: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
+  // Auth
+  user: null,
+  isAuthenticated: false,
+  authLoading: true,
+
   // Navigation
   currentPage: 'dashboard',
   sidebarOpen: true,
   mobileSidebarOpen: false,
 
-  // Data
-  invoices: [],
-  clients: [],
-  initialized: false,
-
-  // UI State
-  selectedInvoiceId: null,
+  // UI state
   selectedClientId: null,
-  showInvoiceForm: false,
+  selectedDevisId: null,
+  selectedInvoiceId: null,
   showClientForm: false,
-  editingInvoiceId: null,
+  showDevisForm: false,
+  showInvoiceForm: false,
   editingClientId: null,
-  invoiceFilter: 'all',
-  searchQuery: '',
+  editingDevisId: null,
+  editingInvoiceId: null,
 
-  // Actions - Navigation
+  // Data
+  clients: [],
+  devis: [],
+  invoices: [],
+  dashboardData: null,
+  settings: null,
+
+  // Auth actions
+  fetchSession: async () => {
+    set({ authLoading: true });
+    try {
+      const res = await fetch('/api/auth/session');
+      const data = await res.json();
+      if (data.user) {
+        set({
+          user: data.user,
+          isAuthenticated: true,
+          authLoading: false,
+        });
+      } else {
+        set({ user: null, isAuthenticated: false, authLoading: false });
+      }
+    } catch {
+      set({ user: null, isAuthenticated: false, authLoading: false });
+    }
+  },
+
+  login: async (email, password) => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) return data.error || 'Erreur lors de la connexion';
+      set({ user: data.user, isAuthenticated: true });
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  register: async (name, firstName, email, password) => {
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, firstName, email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) return data.error || "Erreur lors de l'inscription";
+      set({ user: data.user, isAuthenticated: true });
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  logout: async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    }
+    set({
+      user: null,
+      isAuthenticated: false,
+      clients: [],
+      devis: [],
+      invoices: [],
+      dashboardData: null,
+      settings: null,
+      currentPage: 'dashboard',
+    });
+  },
+
+  // Data fetch
+  fetchClients: async (search?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      const res = await fetch(`/api/clients?${params.toString()}`);
+      const data = await res.json();
+      if (res.ok) set({ clients: data.clients });
+    } catch {
+      // ignore
+    }
+  },
+
+  fetchDevis: async (status?: string, search?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (status) params.set('status', status);
+      if (search) params.set('search', search);
+      const res = await fetch(`/api/devis?${params.toString()}`);
+      const data = await res.json();
+      if (res.ok) set({ devis: data.devis });
+    } catch {
+      // ignore
+    }
+  },
+
+  fetchInvoices: async (status?: string, search?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (status) params.set('status', status);
+      if (search) params.set('search', search);
+      const res = await fetch(`/api/invoices?${params.toString()}`);
+      const data = await res.json();
+      if (res.ok) set({ invoices: data.invoices });
+    } catch {
+      // ignore
+    }
+  },
+
+  fetchDashboard: async () => {
+    try {
+      const res = await fetch('/api/dashboard');
+      const data = await res.json();
+      if (res.ok) set({ dashboardData: data });
+    } catch {
+      // ignore
+    }
+  },
+
+  fetchSettings: async () => {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      if (res.ok) set({ settings: data.settings });
+    } catch {
+      // ignore
+    }
+  },
+
+  // Client CRUD
+  createClient: async (data) => {
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (!res.ok) return result.error || 'Erreur serveur';
+      await get().fetchClients();
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  updateClient: async (id, data) => {
+    try {
+      const res = await fetch(`/api/clients/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (!res.ok) return result.error || 'Erreur serveur';
+      await get().fetchClients();
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  deleteClient: async (id) => {
+    try {
+      const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) return result.error || 'Erreur serveur';
+      set((s) => ({
+        selectedClientId: s.selectedClientId === id ? null : s.selectedClientId,
+      }));
+      await get().fetchClients();
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  // Devis CRUD
+  createDevis: async (data) => {
+    try {
+      const res = await fetch('/api/devis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (!res.ok) return result.error || 'Erreur serveur';
+      set({ showDevisForm: false, editingDevisId: null });
+      await get().fetchDevis();
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  updateDevis: async (id, data) => {
+    try {
+      const res = await fetch(`/api/devis/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (!res.ok) return result.error || 'Erreur serveur';
+      set({ showDevisForm: false, editingDevisId: null });
+      await get().fetchDevis();
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  deleteDevis: async (id) => {
+    try {
+      const res = await fetch(`/api/devis/${id}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) return result.error || 'Erreur serveur';
+      set((s) => ({
+        selectedDevisId: s.selectedDevisId === id ? null : s.selectedDevisId,
+      }));
+      await get().fetchDevis();
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  updateDevisStatus: async (id, status) => {
+    return get().updateDevis(id, { status });
+  },
+
+  convertDevisToInvoice: async (devisId) => {
+    try {
+      const res = await fetch('/api/convert-devis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ devisId }),
+      });
+      const result = await res.json();
+      if (!res.ok) return result.error || 'Erreur serveur';
+      await get().fetchDevis();
+      await get().fetchInvoices();
+      await get().fetchDashboard();
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  // Invoice CRUD
+  createInvoice: async (data) => {
+    try {
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (!res.ok) return result.error || 'Erreur serveur';
+      set({ showInvoiceForm: false, editingInvoiceId: null });
+      await get().fetchInvoices();
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  updateInvoice: async (id, data) => {
+    try {
+      const res = await fetch(`/api/invoices/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (!res.ok) return result.error || 'Erreur serveur';
+      set({ showInvoiceForm: false, editingInvoiceId: null });
+      await get().fetchInvoices();
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  deleteInvoice: async (id) => {
+    try {
+      const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) return result.error || 'Erreur serveur';
+      set((s) => ({
+        selectedInvoiceId: s.selectedInvoiceId === id ? null : s.selectedInvoiceId,
+      }));
+      await get().fetchInvoices();
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  updateInvoiceStatus: async (id, status) => {
+    return get().updateInvoice(id, { status });
+  },
+
+  // Settings
+  updateSettings: async (data) => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (!res.ok) return result.error || 'Erreur serveur';
+      set({ settings: result.settings });
+      return null;
+    } catch {
+      return 'Erreur réseau';
+    }
+  },
+
+  // Navigation
   setPage: (page) => {
-    set({ currentPage: page, selectedInvoiceId: null, selectedClientId: null, searchQuery: '' });
-    get().setMobileSidebarOpen(false);
+    set({ currentPage: page, selectedClientId: null, selectedDevisId: null, selectedInvoiceId: null, mobileSidebarOpen: false });
   },
-  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
-
-  // Actions - Data
-  initialize: () => {
-    const invoices = loadInvoices();
-    const clients = loadClients();
-    set({ invoices, clients, initialized: true });
-  },
-  addInvoice: (invoiceData) => {
-    const invoices = get().invoices;
-    const id = generateId();
-    const number = generateInvoiceNumber(invoices);
-    const invoice: Invoice = { ...invoiceData, id, number };
-    const updated = [invoice, ...invoices];
-    set({ invoices: updated });
-    saveInvoices(updated);
-    return invoice;
-  },
-  updateInvoice: (id, updates) => {
-    const updated = get().invoices.map((inv) => (inv.id === id ? { ...inv, ...updates } : inv));
-    set({ invoices: updated });
-    saveInvoices(updated);
-  },
-  deleteInvoice: (id) => {
-    const updated = get().invoices.filter((inv) => inv.id !== id);
-    set({ invoices: updated, selectedInvoiceId: null });
-    saveInvoices(updated);
-  },
-  updateInvoiceStatus: (id, status) => {
-    get().updateInvoice(id, { status });
-  },
-  addClient: (clientData) => {
-    const id = generateId();
-    const client: Client = { ...clientData, id };
-    const updated = [...get().clients, client];
-    set({ clients: updated });
-    saveClients(updated);
-    return client;
-  },
-  updateClient: (id, updates) => {
-    const updated = get().clients.map((cl) => (cl.id === id ? { ...cl, ...updates } : cl));
-    set({ clients: updated });
-    saveClients(updated);
-  },
-  deleteClient: (id) => {
-    const updated = get().clients.filter((cl) => cl.id !== id);
-    set({ clients: updated, selectedClientId: null });
-    saveClients(updated);
-  },
-
-  // Actions - UI
-  selectInvoice: (id) => set({ selectedInvoiceId: id }),
-  selectClient: (id) => set({ selectedClientId: id }),
-  setShowInvoiceForm: (show) => set({ showInvoiceForm: show, editingInvoiceId: null }),
-  setShowClientForm: (show) => set({ showClientForm: show, editingClientId: null }),
-  setEditingInvoice: (id) => set({ editingInvoiceId: id, showInvoiceForm: id !== null }),
-  setEditingClient: (id) => set({ editingClientId: id, showClientForm: id !== null }),
-  setInvoiceFilter: (filter) => set({ invoiceFilter: filter }),
-  setSearchQuery: (query) => set({ searchQuery: query }),
+  setSelectedClientId: (id) => set({ selectedClientId: id }),
+  setSelectedDevisId: (id) => set({ selectedDevisId: id }),
+  setSelectedInvoiceId: (id) => set({ selectedInvoiceId: id }),
+  setShowClientForm: (show) => set({ showClientForm: show, editingClientId: show ? null : get().editingClientId }),
+  setShowDevisForm: (show) => set({ showDevisForm: show, editingDevisId: show ? null : get().editingDevisId }),
+  setShowInvoiceForm: (show) => set({ showInvoiceForm: show, editingInvoiceId: show ? null : get().editingInvoiceId }),
+  setEditingClientId: (id) => set({ editingClientId: id, showClientForm: true }),
+  setEditingDevisId: (id) => set({ editingDevisId: id, showDevisForm: true }),
+  setEditingInvoiceId: (id) => set({ editingInvoiceId: id, showInvoiceForm: true }),
 }));
-
-// Derived helpers
-export function useInvoiceStats() {
-  const invoices = useAppStore((s) => s.invoices);
-  return {
-    totalRevenue: invoices.filter((i) => i.status === 'paid').reduce((sum, i) => sum + i.total, 0),
-    pendingCount: invoices.filter((i) => i.status === 'pending' || i.status === 'sent').length,
-    paidCount: invoices.filter((i) => i.status === 'paid').length,
-    overdueCount: invoices.filter((i) => i.status === 'overdue').length,
-    pendingAmount: invoices.filter((i) => i.status === 'pending' || i.status === 'sent').reduce((sum, i) => sum + i.total, 0),
-    overdueAmount: invoices.filter((i) => i.status === 'overdue').reduce((sum, i) => sum + i.total, 0),
-  };
-}
-
-export function useMonthlyRevenue() {
-  const invoices = useAppStore((s) => s.invoices);
-  const months: { month: string; revenue: number; invoices: number }[] = [];
-  const now = new Date();
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthStr = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
-    const monthInvoices = invoices.filter((inv) => {
-      const invDate = new Date(inv.issueDate);
-      return invDate.getMonth() === d.getMonth() && invDate.getFullYear() === d.getFullYear() && inv.status === 'paid';
-    });
-    months.push({
-      month: monthStr,
-      revenue: monthInvoices.reduce((sum, inv) => sum + inv.total, 0),
-      invoices: monthInvoices.length,
-    });
-  }
-  return months;
-}
-
-export function createEmptyLineItem(): LineItem {
-  return {
-    id: generateId(),
-    description: '',
-    quantity: 1,
-    unitPrice: 0,
-    total: 0,
-  };
-}

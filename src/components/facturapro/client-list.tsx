@@ -1,254 +1,213 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  Plus,
   Search,
-  Users,
+  Plus,
   Building2,
   Mail,
   Phone,
   MapPin,
   MoreHorizontal,
-  Eye,
   Pencil,
   Trash2,
+  Eye,
+  Loader2,
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAppStore } from '@/lib/store';
-import { formatCurrency } from '@/lib/helpers';
-import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/helpers';
 
 export function ClientList() {
   const {
     clients,
-    invoices,
     selectedClientId,
-    searchQuery,
-    setSearchQuery,
-    selectClient,
+    fetchClients,
+    setSelectedClientId,
     setShowClientForm,
-    setEditingClient,
+    setEditingClientId,
     deleteClient,
   } = useAppStore();
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const fetchIdRef = useRef(0);
 
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [clientToDelete, setClientToDelete] = useState<string | null>(null);
+  useEffect(() => {
+    const id = ++fetchIdRef.current;
+    fetchClients(search).then(() => {
+      if (id === fetchIdRef.current) setLoading(false);
+    });
+    return () => { fetchIdRef.current++; };
+  }, [fetchClients, search]);
 
-  const getClientStats = (clientId: string) => {
-    const client = clients.find((c) => c.id === clientId);
-    if (!client) return { total: 0, paid: 0, pending: 0, overdue: 0, count: 0 };
-    const clientInvoices = invoices.filter((inv) => inv.clientEmail === client.email);
-    return {
-      total: clientInvoices.reduce((sum, inv) => sum + inv.total, 0),
-      paid: clientInvoices.filter((inv) => inv.status === 'paid').reduce((sum, inv) => sum + inv.total, 0),
-      pending: clientInvoices.filter((inv) => inv.status === 'pending' || inv.status === 'sent').reduce((sum, inv) => sum + inv.total, 0),
-      overdue: clientInvoices.filter((inv) => inv.status === 'overdue').reduce((sum, inv) => sum + inv.total, 0),
-      count: clientInvoices.length,
-    };
-  };
-
-  const filteredClients = useMemo(() => {
-    if (!searchQuery.trim()) return clients;
-    const q = searchQuery.toLowerCase();
-    return clients.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q) ||
-        (c.company && c.company.toLowerCase().includes(q)),
-    );
-  }, [clients, searchQuery]);
-
-  const handleDelete = () => {
-    if (clientToDelete) {
-      deleteClient(clientToDelete);
-      setDeleteDialogOpen(false);
-      setClientToDelete(null);
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    const err = await deleteClient(deleteId);
+    setDeleting(false);
+    if (err) {
+      alert(err);
+    } else {
+      setDeleteId(null);
     }
   };
 
-  if (selectedClientId) {
-    return null;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Clients</h2>
-          <p className="text-muted-foreground mt-1">Gérez votre base de données clients</p>
+          <p className="text-muted-foreground text-sm">{clients.length} client(s) enregistré(s)</p>
         </div>
-        <Button onClick={() => setShowClientForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white gap-2 self-start">
-          <Plus className="h-4 w-4" />
-          Ajouter un client
+        <Button onClick={() => { setShowClientForm(true); }} size="sm">
+          <Plus className="w-4 h-4 mr-1.5" />
+          Nouveau client
         </Button>
       </div>
 
-      {/* Search */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher des clients..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Rechercher un client..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
 
-      {/* Client Cards */}
-      {filteredClients.length === 0 ? (
+      {clients.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <Users className="h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-medium">Aucun client trouvé</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {searchQuery ? 'Essayez d\'ajuster votre recherche' : 'Ajoutez votre premier client pour commencer'}
-            </p>
-            {!searchQuery && (
-              <Button onClick={() => setShowClientForm(true)} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter un client
-              </Button>
-            )}
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <Building2 className="w-12 h-12 text-muted-foreground/40 mb-4" />
+            <p className="text-muted-foreground">Aucun client trouvé</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => setShowClientForm(true)}>
+              <Plus className="w-4 h-4 mr-1.5" />
+              Ajouter un client
+            </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredClients.map((client) => {
-            const stats = getClientStats(client.id);
-            const initials = client.name
-              .split(' ')
-              .map((n) => n[0])
-              .join('')
-              .substring(0, 2)
-              .toUpperCase();
-            return (
-              <Card key={client.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => selectClient(client.id)}>
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-11 w-11 bg-blue-100 text-blue-700">
-                        <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-sm">{initials}</AvatarFallback>
-                      </Avatar>
-                      <div className="overflow-hidden">
-                        <p className="font-semibold text-sm truncate">{client.name}</p>
-                        {client.company && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
-                            <Building2 className="h-3 w-3 shrink-0" />
-                            {client.company}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); selectClient(client.id); }}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          Voir les détails
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingClient(client.id); }}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Modifier
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={(e) => { e.stopPropagation(); setClientToDelete(client.id); setDeleteDialogOpen(true); }}
-                          className="text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Supprimer
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  <div className="mt-3 space-y-1">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1.5 truncate">
-                      <Mail className="h-3 w-3 shrink-0" />
-                      {client.email}
-                    </p>
-                    {client.phone && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <Phone className="h-3 w-3 shrink-0" />
-                        {client.phone}
-                      </p>
+          {clients.map((client) => (
+            <Card
+              key={client.id}
+              className={`transition-colors cursor-pointer ${
+                selectedClientId === client.id ? 'ring-2 ring-[#1a1a2e]' : 'hover:shadow-md'
+              }`}
+              onClick={() => setSelectedClientId(client.id === selectedClientId ? null : client.id)}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm truncate">{client.name}</h3>
+                    {client.company && (
+                      <p className="text-xs text-muted-foreground truncate">{client.company}</p>
                     )}
                   </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedClientId(client.id); }}>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Voir les détails
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingClientId(client.id); }}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Modifier
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => { e.stopPropagation(); setDeleteId(client.id); }}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Supprimer
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
 
-                  <div className="mt-4 pt-3 border-t grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Factures</p>
-                      <p className="text-sm font-semibold">{stats.count}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Payé</p>
-                      <p className="text-sm font-semibold text-emerald-600">{formatCurrency(stats.paid)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">En attente</p>
-                      <p className={cn("text-sm font-semibold", (stats.pending + stats.overdue) > 0 ? "text-amber-600" : "text-slate-400")}>
-                        {formatCurrency(stats.pending + stats.overdue)}
-                      </p>
-                    </div>
+                <div className="space-y-1.5 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{client.email}</span>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  {client.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>{client.phone}</span>
+                    </div>
+                  )}
+                  {(client.city || client.postalCode) && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">
+                        {[client.postalCode, client.city].filter(Boolean).join(' ')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+                  <Badge variant="outline" className="text-xs">
+                    Client depuis {formatDate(client.createdAt)}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
-      {/* Delete Confirmation */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Supprimer le client</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce client ? Ses factures seront conservées.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
-            <Button variant="destructive" onClick={handleDelete}>Supprimer</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce client ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Tous les devis et factures associés seront également supprimés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-red-600 hover:bg-red-700">
+              {deleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,18 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Download,
-  Pencil,
   Send,
-  CheckCircle2,
+  CheckCircle,
   XCircle,
-  Printer,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Table,
@@ -23,185 +21,202 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAppStore } from '@/lib/store';
-import { InvoiceStatus } from '@/lib/types';
-import { formatCurrency, formatDate, getStatusBadge } from '@/lib/helpers';
+import { formatDate, formatCurrency, getInvoiceStatusBadge, calculateTotals } from '@/lib/helpers';
+import type { Invoice, InvoiceStatus } from '@/lib/types';
 
 export function InvoiceDetail() {
-  const { invoices, selectedInvoiceId, selectInvoice, setEditingInvoice, updateInvoiceStatus } = useAppStore();
+  const {
+    selectedInvoiceId,
+    setSelectedInvoiceId,
+    updateInvoiceStatus,
+    setEditingInvoiceId,
+  } = useAppStore();
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const fetchIdRef = useRef(0);
 
-  const invoice = invoices.find((inv) => inv.id === selectedInvoiceId);
+  useEffect(() => {
+    if (!selectedInvoiceId) return;
+    const id = ++fetchIdRef.current;
+    fetch(`/api/invoices/${selectedInvoiceId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (id === fetchIdRef.current) {
+          if (data.invoice) setInvoice(data.invoice);
+          else setSelectedInvoiceId(null);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (id === fetchIdRef.current) {
+          setSelectedInvoiceId(null);
+          setLoading(false);
+        }
+      });
+    return () => { fetchIdRef.current++; };
+  }, [selectedInvoiceId, setSelectedInvoiceId]);
 
-  if (!invoice) {
+  const handleStatus = async (status: InvoiceStatus) => {
+    if (!selectedInvoiceId) return;
+    setActionLoading(status);
+    const err = await updateInvoiceStatus(selectedInvoiceId, status);
+    setActionLoading(null);
+    if (err) alert(err);
+    else {
+      fetch(`/api/invoices/${selectedInvoiceId}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.invoice) setInvoice(data.invoice); });
+    }
+  };
+
+  const handlePdf = () => {
+    if (!selectedInvoiceId) return;
+    window.open(`/api/invoices/${selectedInvoiceId}/pdf`, '_blank');
+  };
+
+  if (!selectedInvoiceId) return null;
+
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-muted-foreground">Facture introuvable.</p>
-        <Button variant="outline" onClick={() => selectInvoice(null)} className="mt-4">
-          Retour aux factures
-        </Button>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  const handleStatusUpdate = (status: InvoiceStatus) => {
-    updateInvoiceStatus(invoice.id, status);
-  };
+  if (!invoice) return null;
+
+  const totals = calculateTotals(invoice.items);
+  const discountAmount = totals.totalTtc * (invoice.globalDiscount / 100);
+  const finalTotal = totals.totalTtc - discountAmount;
+  const canEdit = invoice.status !== 'paid' && invoice.status !== 'cancelled';
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => selectInvoice(null)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold tracking-tight">{invoice.number}</h2>
-              {getStatusBadge(invoice.status)}
-            </div>
-            <p className="text-muted-foreground mt-0.5">Détails et gestion de la facture</p>
+      <Button variant="ghost" size="sm" onClick={() => setSelectedInvoiceId(null)} className="text-muted-foreground">
+        <ArrowLeft className="w-4 h-4 mr-1.5" />
+        Retour à la liste
+      </Button>
+
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <h2 className="text-xl font-bold font-mono">{invoice.number}</h2>
+            {getInvoiceStatusBadge(invoice.status as InvoiceStatus)}
           </div>
+          <p className="text-sm text-muted-foreground">
+            {invoice.client.company || invoice.client.name}
+            {invoice.client.company && invoice.client.name && ` — ${invoice.client.name}`}
+          </p>
+          {invoice.devis && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Devis d&apos;origine : {invoice.devis.number}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => setEditingInvoice(invoice.id)} className="gap-1.5">
-            <Pencil className="h-3.5 w-3.5" />
-            Modifier
+          {canEdit && (
+            <Button variant="outline" size="sm" onClick={() => setEditingInvoiceId(invoice.id)}>Modifier</Button>
+          )}
+          <Button variant="outline" size="sm" onClick={handlePdf}>
+            <Download className="w-4 h-4 mr-1.5" />
+            Télécharger PDF
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <Printer className="h-3.5 w-3.5" />
-            Imprimer
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <Download className="h-3.5 w-3.5" />
-            PDF
-          </Button>
+          {invoice.status === 'draft' && (
+            <Button variant="outline" size="sm" onClick={() => handleStatus('sent')} disabled={!!actionLoading}>
+              {actionLoading === 'sent' ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Send className="w-4 h-4 mr-1.5" />}
+              Envoyer
+            </Button>
+          )}
+          {(invoice.status === 'sent' || invoice.status === 'overdue') && (
+            <Button size="sm" onClick={() => handleStatus('paid')} disabled={!!actionLoading}>
+              {actionLoading === 'paid' ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-1.5" />}
+              Marquer payée
+            </Button>
+          )}
+          {invoice.status !== 'cancelled' && canEdit && (
+            <Button variant="outline" size="sm" className="text-red-600" onClick={() => handleStatus('cancelled')} disabled={!!actionLoading}>
+              {actionLoading === 'cancelled' ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <XCircle className="w-4 h-4 mr-1.5" />}
+              Annuler
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Quick Status Actions */}
-      {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardContent className="p-4">
-            <div className="flex flex-wrap gap-2">
-              {(invoice.status === 'draft' || invoice.status === 'pending') && (
-                <Button size="sm" variant="outline" onClick={() => handleStatusUpdate('sent')} className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50">
-                  <Send className="h-3.5 w-3.5" />
-                  Marquer comme envoyée
-                </Button>
-              )}
-              {invoice.status !== 'overdue' && (
-                <Button size="sm" variant="outline" onClick={() => handleStatusUpdate('overdue')} className="gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50">
-                  <XCircle className="h-3.5 w-3.5" />
-                  Marquer en retard
-                </Button>
-              )}
-              <Button size="sm" onClick={() => handleStatusUpdate('paid')} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Marquer comme payée
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => handleStatusUpdate('cancelled')} className="gap-1.5 border-red-200 text-red-700 hover:bg-red-50">
-                Annuler la facture
-              </Button>
-            </div>
+            <p className="text-xs text-muted-foreground">Date d&apos;émission</p>
+            <p className="text-sm font-medium">{formatDate(invoice.issueDate)}</p>
           </CardContent>
         </Card>
-      )}
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Date d&apos;échéance</p>
+            <p className="text-sm font-medium">{formatDate(invoice.dueDate)}</p>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Invoice Preview */}
       <Card>
-        <CardContent className="p-6 sm:p-8">
-          <div className="max-w-2xl mx-auto">
-            {/* Invoice Header */}
-            <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
-              <div>
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">F</span>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-900">FacturaPro</h3>
-                    <p className="text-xs text-slate-500">Gestion de factures</p>
-                  </div>
-                </div>
-              </div>
-              <div className="text-right">
-                <h3 className="text-2xl font-bold text-slate-900">{invoice.number}</h3>
-                <div className="mt-1">{getStatusBadge(invoice.status)}</div>
-              </div>
-            </div>
-
-            {/* Client & Dates */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-              <div>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Facturer à</p>
-                <p className="font-semibold text-slate-900">{invoice.clientName}</p>
-                <p className="text-sm text-slate-600">{invoice.clientEmail}</p>
-              </div>
-              <div className="sm:text-right">
-                <div className="space-y-1">
-                  <div>
-                    <span className="text-xs text-slate-500">Date d'émission : </span>
-                    <span className="text-sm font-medium">{formatDate(invoice.issueDate)}</span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-slate-500">Date d'échéance : </span>
-                    <span className="text-sm font-medium">{formatDate(invoice.dueDate)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Line Items Table */}
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50">
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-center">Qté</TableHead>
-                  <TableHead className="text-right">Prix unitaire</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold">Détail des articles</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Qté</TableHead>
+                <TableHead>Unité</TableHead>
+                <TableHead className="text-right">P.U. HT</TableHead>
+                <TableHead className="text-right">TVA</TableHead>
+                <TableHead className="text-right">Total HT</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoice.items.map((item, idx) => (
+                <TableRow key={idx}>
+                  <TableCell className="text-sm">{item.description}</TableCell>
+                  <TableCell className="text-right text-sm">{item.quantity}</TableCell>
+                  <TableCell className="text-sm">{item.unit}</TableCell>
+                  <TableCell className="text-right text-sm">{formatCurrency(item.unitPrice)}</TableCell>
+                  <TableCell className="text-right text-sm">{item.tvaRate}%</TableCell>
+                  <TableCell className="text-right text-sm font-medium">{formatCurrency(item.quantity * item.unitPrice)}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoice.items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.description}</TableCell>
-                    <TableCell className="text-center">{item.quantity}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.total)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-
-            {/* Totals */}
-            <div className="flex justify-end mt-6">
-              <div className="w-64 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Sous-total</span>
-                  <span className="font-medium">{formatCurrency(invoice.subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">TVA</span>
-                  <span className="font-medium">{formatCurrency(invoice.tax)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <span className="font-semibold text-slate-900">Total</span>
-                  <span className="font-bold text-xl text-blue-600">{formatCurrency(invoice.total)}</span>
-                </div>
-              </div>
+              ))}
+            </TableBody>
+          </Table>
+          <Separator className="my-4" />
+          <div className="flex justify-end">
+            <div className="w-72 space-y-2">
+              <div className="flex justify-between text-sm"><span>Total HT</span><span>{formatCurrency(totals.totalHt)}</span></div>
+              {Object.entries(totals.tvaDetails).map(([rate, amount]) => (
+                <div key={rate} className="flex justify-between text-sm text-muted-foreground"><span>TVA {rate}%</span><span>{formatCurrency(amount)}</span></div>
+              ))}
+              <div className="flex justify-between text-sm"><span>Total TVA</span><span>{formatCurrency(totals.totalTva)}</span></div>
+              <Separator />
+              <div className="flex justify-between text-sm font-semibold"><span>Total TTC</span><span>{formatCurrency(totals.totalTtc)}</span></div>
+              {invoice.globalDiscount > 0 && (
+                <div className="flex justify-between text-sm text-emerald-600"><span>Remise ({invoice.globalDiscount}%)</span><span>-{formatCurrency(discountAmount)}</span></div>
+              )}
+              <div className="flex justify-between text-lg font-bold"><span>Net à payer</span><span>{formatCurrency(finalTotal)}</span></div>
             </div>
-
-            {/* Notes */}
-            {invoice.notes && (
-              <div className="mt-8 p-4 bg-slate-50 rounded-lg">
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Notes</p>
-                <p className="text-sm text-slate-700">{invoice.notes}</p>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
+
+      {invoice.notes && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm whitespace-pre-wrap">{invoice.notes}</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
