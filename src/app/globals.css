@@ -222,6 +222,116 @@
   }
 }
 
+@keyframes authFloatA {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -20px, 0) scale(1.04);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes authFloatB {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-26px, 18px, 0) scale(0.96);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes authFloatC {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(22px, -12px, 0) scale(1.06);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes authNoiseShift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(22px, -18px, 0);
+  }
+}
+
+@layer components {
+  .auth-shell {
+    background:
+      radial-gradient(1000px 600px at 10% -15%, color-mix(in oklab, oklch(0.83 0.16 236) 24%, transparent), transparent 66%),
+      radial-gradient(820px 560px at 90% -8%, color-mix(in oklab, oklch(0.88 0.14 198) 18%, transparent), transparent 62%),
+      linear-gradient(135deg, color-mix(in oklab, var(--background) 88%, white 12%) 0%, var(--background) 66%);
+  }
+
+  .auth-card {
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in oklab, var(--card) 94%, white 6%) 0%,
+        color-mix(in oklab, var(--card) 98%, transparent) 100%
+      );
+    backdrop-filter: blur(10px);
+  }
+
+  .auth-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(28px);
+    opacity: 0.42;
+  }
+
+  .auth-orb-1 {
+    width: 360px;
+    height: 360px;
+    top: -120px;
+    left: -100px;
+    background: color-mix(in oklab, oklch(0.66 0.2 246) 72%, transparent);
+    animation: authFloatA 18s ease-in-out infinite;
+  }
+
+  .auth-orb-2 {
+    width: 330px;
+    height: 330px;
+    right: -120px;
+    top: 22%;
+    background: color-mix(in oklab, oklch(0.7 0.18 196) 62%, transparent);
+    animation: authFloatB 21s ease-in-out infinite;
+  }
+
+  .auth-orb-3 {
+    width: 290px;
+    height: 290px;
+    bottom: -120px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: color-mix(in oklab, oklch(0.78 0.11 268) 42%, transparent);
+    animation: authFloatC 24s ease-in-out infinite;
+  }
+
+  .auth-noise-layer {
+    position: absolute;
+    inset: -20%;
+    opacity: 0.08;
+    background:
+      radial-gradient(circle at 20% 30%, color-mix(in oklab, var(--foreground) 40%, transparent) 0.5px, transparent 1.2px),
+      radial-gradient(circle at 70% 60%, color-mix(in oklab, var(--foreground) 35%, transparent) 0.5px, transparent 1.4px);
+    background-size: 26px 26px, 34px 34px;
+    animation: authNoiseShift 28s linear infinite;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
