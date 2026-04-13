@@ -20,7 +20,7 @@ import { DevisForm } from '@/components/facturapro/devis-form';
 import { SettingsPage } from '@/components/facturapro/settings';
 import { cn } from '@/lib/utils';
 
-// --- Error Boundary to catch rendering crashes ---
+// --- Error Boundary ---
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
@@ -42,7 +42,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Keep console logging for debugging; in prod you might send this to a monitoring service
     // eslint-disable-next-line no-console
     console.error('ErrorBoundary caught:', error, errorInfo);
   }
@@ -55,16 +54,18 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
       return (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <AlertTriangle className="w-12 h-12 text-amber-500 mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Une erreur est survenue</h3>
-          <p className="text-sm text-muted-foreground mb-4 max-w-md">
-            {this.state.error?.message || 'Erreur inconnue'}
-          </p>
-          <Button variant="outline" onClick={this.reset}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Réessayer
-          </Button>
+        <div className="flex flex-col items-center justify-center py-20 text-center animate-entrance">
+          <div className="premium-card max-w-md w-full flex flex-col items-center p-8">
+            <AlertTriangle className="w-14 h-14 text-[var(--danger)] mb-4 opacity-90" />
+            <h3 className="text-xl font-bold mb-2">Oups, une erreur est survenue</h3>
+            <p className="text-sm text-muted mb-6">
+              {this.state.error?.message || 'Erreur inattendue lors du chargement du composant.'}
+            </p>
+            <button className="accent-btn" onClick={this.reset}>
+              <RefreshCw className="w-4 h-4" />
+              Réessayer
+            </button>
+          </div>
         </div>
       );
     }
@@ -103,81 +104,93 @@ function LoginPage(): JSX.Element {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <div className="w-10 h-10 bg-[#1a1a2e] rounded-lg flex items-center justify-center" aria-hidden>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" role="img" aria-label="FacturaPro logo">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-[#1a1a2e]">FacturaPro</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg)] text-[var(--fg)] px-4 py-8 relative overflow-hidden">
+      
+      {/* Effets de fond Premium (Glow décoratif) */}
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-[var(--primary)]/20 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-[var(--accent)]/15 rounded-full blur-[100px] pointer-events-none" />
+
+      <div className="w-full max-w-md relative z-10 animate-entrance">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-600)] rounded-2xl shadow-lg mb-4">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Gestion de factures professionnelle
+          <h1 className="text-3xl font-extrabold tracking-tight">FacturaPro</h1>
+          <p className="text-muted mt-2">
+            La gestion financière, simplifiée.
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold mb-4">
-            {isRegister ? 'Créer un compte' : 'Se connecter'}
+        <div className="premium-card p-8">
+          <h2 className="text-xl font-bold mb-6 text-center">
+            {isRegister ? 'Créer votre compte' : 'Bon retour parmi nous'}
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             {isRegister && (
-              <>
+              <div className="grid grid-cols-2 gap-4 animate-entrance">
                 <div className="space-y-2">
                   <Label htmlFor="auth-name">Nom *</Label>
-                  <Input id="auth-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Dupont" required autoComplete="family-name" />
+                  <Input id="auth-name" className="focus-ring" value={name} onChange={(e) => setName(e.target.value)} placeholder="Dupont" required autoComplete="family-name" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="auth-firstname">Prénom</Label>
-                  <Input id="auth-firstname" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jean" autoComplete="given-name" />
+                  <Input id="auth-firstname" className="focus-ring" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jean" autoComplete="given-name" />
                 </div>
-              </>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="auth-email">Email *</Label>
-              <Input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.fr" required autoComplete="email" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="auth-password">Mot de passe *</Label>
-              <Input id="auth-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={8} autoComplete={isRegister ? 'new-password' : 'current-password'} />
-              {isRegister && (
-                <p className="text-xs text-muted-foreground">Minimum 8 caractères</p>
-              )}
-            </div>
-            {error && (
-              <div role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
-                {error}
               </div>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {isRegister ? "S'inscrire" : 'Se connecter'}
-            </Button>
+            <div className="space-y-2">
+              <Label htmlFor="auth-email">Adresse email *</Label>
+              <Input id="auth-email" type="email" className="focus-ring" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.fr" required autoComplete="email" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="auth-password">Mot de passe *</Label>
+                {!isRegister && (
+                  <a href="#" className="text-xs text-[var(--primary)] font-medium hover:underline">Mot de passe oublié ?</a>
+                )}
+              </div>
+              <Input id="auth-password" type="password" className="focus-ring" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={8} autoComplete={isRegister ? 'new-password' : 'current-password'} />
+              {isRegister && (
+                <p className="text-xs text-muted">Minimum 8 caractères requis</p>
+              )}
+            </div>
+
+            {error && (
+              <div role="alert" className="text-sm font-medium text-[var(--danger)] bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded-md px-4 py-3 flex items-start gap-2 animate-entrance">
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+            
+            <button type="submit" className="accent-btn w-full justify-center py-2.5 mt-2" disabled={loading}>
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+              {isRegister ? "Créer mon espace" : 'Se connecter'}
+            </button>
           </form>
 
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => { setIsRegister(!isRegister); setError(''); }}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            >
-              {isRegister
-                ? 'Déjà un compte ? Se connecter'
-                : 'Pas encore de compte ? Créer un compte'}
-            </button>
+          <div className="mt-8 pt-6 border-t border-[var(--border)] text-center">
+            <p className="text-sm text-muted">
+              {isRegister ? 'Déjà un compte ?' : 'Nouveau sur FacturaPro ?'}{' '}
+              <button
+                type="button"
+                onClick={() => { setIsRegister(!isRegister); setError(''); }}
+                className="text-[var(--primary)] font-semibold hover:text-[var(--primary-600)] transition-colors cursor-pointer"
+              >
+                {isRegister ? 'Se connecter' : 'Créer un compte'}
+              </button>
+            </p>
           </div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          © 2024 FacturaPro. Tous droits réservés.
+        <p className="text-center text-xs text-muted mt-8">
+          © {new Date().getFullYear()} FacturaPro. Tous droits réservés.
         </p>
       </div>
     </div>
@@ -201,7 +214,6 @@ function AuthenticatedApp(): JSX.Element {
   const setMobileSidebarOpen = useAppStore((s) => s.setMobileSidebarOpen);
 
   useEffect(() => {
-    // fetchClients and fetchDashboard are stable selectors from the store; keep them in deps to satisfy lint rules
     fetchClients();
     fetchDashboard();
   }, [fetchClients, fetchDashboard]);
@@ -224,7 +236,7 @@ function AuthenticatedApp(): JSX.Element {
   }, [currentPage, selectedClientId, selectedDevisId, selectedInvoiceId]);
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--fg)] font-sans">
       <Sidebar />
       <main
         className={cn(
@@ -232,21 +244,33 @@ function AuthenticatedApp(): JSX.Element {
           sidebarOpen ? 'lg:ml-64' : 'lg:ml-[72px]',
         )}
       >
-        <header className="lg:hidden sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setMobileSidebarOpen(true)} aria-label="Ouvrir le menu">
+        {/* Header Mobile avec effet Glassmorphism */}
+        <header className="lg:hidden sticky top-0 z-20 glass rounded-none border-b border-[var(--glass-border)] px-4 py-3 flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-9 w-9 text-[var(--fg)] hover:bg-[var(--border)]" onClick={() => setMobileSidebarOpen(true)} aria-label="Ouvrir le menu">
             <Menu className="w-5 h-5" />
           </Button>
-          <h1 className="font-bold text-[#1a1a2e]">FacturaPro</h1>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-600)] rounded-lg flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </div>
+            <h1 className="font-bold text-lg tracking-tight">FacturaPro</h1>
+          </div>
         </header>
 
-        <div className="p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8">
+        {/* Zone de contenu principale */}
+        <div className="p-4 sm:p-6 lg:p-10 pt-6 lg:pt-10 max-w-[1600px] mx-auto">
           <ErrorBoundary>
             {renderCurrentPage()}
           </ErrorBoundary>
         </div>
       </main>
 
-      {/* Global dialogs - key prop forces remount when editing entity changes */}
+      {/* Modales globales */}
       <ClientForm key={editingClientId || 'new-client'} editingClientId={editingClientId} />
       <DevisForm key={editingDevisId || 'new-devis'} editingDevisId={editingDevisId} />
       <InvoiceForm key={editingInvoiceId || 'new-invoice'} editingInvoiceId={editingInvoiceId} />
@@ -263,8 +287,17 @@ export default function FacturaProApp(): JSX.Element {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-8 h-8 animate-spin text-[#1a1a2e]" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg)]">
+        {/* Spinner de chargement Premium */}
+        <div className="relative w-16 h-16 flex items-center justify-center">
+          <div className="absolute inset-0 border-4 border-[var(--border)] rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-[var(--primary)] rounded-full border-t-transparent animate-spin"></div>
+          <svg className="w-6 h-6 text-[var(--primary)] relative z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </div>
+        <p className="mt-4 text-sm font-medium text-muted animate-pulse">Chargement de votre espace...</p>
       </div>
     );
   }
