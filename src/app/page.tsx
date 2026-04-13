@@ -132,23 +132,23 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 const FEATURES = [
   {
     icon: FileText,
-    title: 'Facturation instantanée',
-    desc: 'Créez et envoyez des factures professionnelles en quelques secondes.',
+    title: "Factures en 30 secondes",
+    desc: "Créez une facture complète et professionnelle en moins d’une minute.",
   },
   {
     icon: Users,
-    title: 'Gestion des clients',
-    desc: "Un carnet d'adresses complet, centralisé et toujours à jour.",
+    title: "Clients bien organisés",
+    desc: "Toutes vos coordonnées clients au même endroit, accessibles en un clic.",
   },
   {
     icon: TrendingUp,
-    title: 'Suivi en temps réel',
-    desc: 'Tableau de bord analytique pour piloter votre activité.',
+    title: "Vision claire de votre activité",
+    desc: "Suivez votre chiffre d’affaires et vos paiements en temps réel.",
   },
   {
     icon: CheckCircle2,
-    title: 'Devis & relances auto',
-    desc: 'Convertissez vos devis en factures, relancez automatiquement.',
+    title: "Devis transformés automatiquement",
+    desc: "Passez de devis à facture sans ressaisie et relancez vos clients automatiquement.",
   },
 ] as const;
 
