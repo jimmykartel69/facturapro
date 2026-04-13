@@ -229,24 +229,37 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function normalizePdfText(value: string): string {
+  // PDFKit + Helvetica may render thin/non-breaking spaces as unexpected glyphs (e.g. "/").
+  return value
+    .replace(/\u202f/g, ' ')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+€/g, ' €')
+    .trim();
+}
+
 function fmtCur(amount: number): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+  return normalizePdfText(
+    new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount),
+  );
 }
 
 function fmtDate(date: Date): string {
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  }).format(date);
+  return normalizePdfText(
+    new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }).format(date),
+  );
 }
 
 function fmtQty(value: number): string {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(value);
+  return normalizePdfText(new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(value));
 }
 
 function fmtPercent(value: number): string {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);
+  return normalizePdfText(new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value));
 }
 
 function isAE(legalForm?: string | null): boolean {
@@ -427,6 +440,10 @@ function drawHeader(ctx: Ctx): void {
   doc.font('Helvetica-Bold').fontSize(16).fillColor(C.primary).text(name, lx, ly, { width: leftW });
   ly += nameHeight + 4;
 
+  doc.font('Helvetica-Bold').fontSize(7.1).fillColor(C.accent);
+  doc.text('ÉLECTRICITÉ GÉNÉRALE • INSTALLATION • MAINTENANCE', lx, ly, { width: leftW });
+  ly += 12;
+
   const identityLines: string[] = [];
   if (clean(company.address)) identityLines.push(clean(company.address));
   if (clean(company.addressComplement)) identityLines.push(clean(company.addressComplement));
@@ -461,6 +478,7 @@ function drawHeader(ctx: Ctx): void {
   const rows: Array<{ key: string; value: string }> = [
     { key: 'Numéro', value: ctx.docNumber },
     { key: "Date d'émission", value: fmtDate(ctx.issueDate) },
+    { key: 'Devise', value: 'EUR' },
   ];
 
   if (ctx.extraDate) {
@@ -473,6 +491,11 @@ function drawHeader(ctx: Ctx): void {
   if (clean(ctx.devisNumber)) {
     rows.push({ key: 'Réf. devis', value: clean(ctx.devisNumber) });
   }
+
+  rows.push({
+    key: ctx.docType === 'devis' ? 'Acompte' : 'Paiement',
+    value: ctx.docType === 'devis' ? '30 % à la commande' : 'Virement bancaire',
+  });
 
   const cardH = 28 + rows.length * 16 + cardPad;
   doc.roundedRect(rx, cardY, rw, cardH, 8).fill(C.bgLight);
@@ -512,12 +535,15 @@ function drawClientCard(ctx: Ctx): void {
   const rightLines: string[] = [];
   rightLines.push(`Conditions : ${clean(company.paymentTerms) || '30 jours'}`);
   rightLines.push(`Montant TTC : ${fmtCur(ctx.totals.totalTtc)}`);
+  rightLines.push('Mode de règlement : virement bancaire');
   if (ctx.docType === 'devis' && ctx.extraDate) {
     rightLines.push(`Valide jusqu'au : ${fmtDate(ctx.extraDate)}`);
+    rightLines.push('Acompte à la commande : 30 %');
   }
   if (ctx.docType === 'invoice' && ctx.extraDate) {
     rightLines.push(`Échéance : ${fmtDate(ctx.extraDate)}`);
   }
+  rightLines.push('CGV : annexe contractuelle jointe');
   if (clean(ctx.devisNumber)) rightLines.push(`Réf. devis : ${clean(ctx.devisNumber)}`);
 
   const leftHeight = 22 + leftLines.length * 10;
@@ -547,10 +573,14 @@ function drawClientCard(ctx: Ctx): void {
   }
 
   let ry = ctx.y + pad + 14;
-  doc.font('Helvetica').fontSize(7.6).fillColor(C.textSec);
   for (const line of rightLines) {
+    const isAmount = line.startsWith('Montant TTC');
+    doc
+      .font(isAmount ? 'Helvetica-Bold' : 'Helvetica')
+      .fontSize(isAmount ? 8.8 : 7.6)
+      .fillColor(isAmount ? C.primary : C.textSec);
     doc.text(line, split + pad, ry, { width: x + w - split - pad * 2 });
-    ry += 10;
+    ry += isAmount ? 12 : 10;
   }
 
   ctx.y += h + 12;
@@ -771,6 +801,10 @@ function drawTotals(ctx: Ctx): void {
     rows.push({ label: 'TVA', value: 'Non applicable (art. 293 B CGI)' });
   }
 
+  if (ctx.docType === 'devis') {
+    rows.push({ label: 'Acompte conseillé (30%)', value: fmtCur(totals.totalTtc * 0.3) });
+  }
+
   const boxW = CW * 0.46;
   const x = MG + CW - boxW;
   const rowH = 15;
@@ -780,11 +814,12 @@ function drawTotals(ctx: Ctx): void {
 
   doc.roundedRect(x, ctx.y, boxW, h, 8).fill(C.white);
   doc.roundedRect(x, ctx.y, boxW, h, 8).strokeColor(C.border).lineWidth(0.8).stroke();
+  doc.roundedRect(x + 1, ctx.y + 1, boxW - 2, 20, 7).fill(C.bgLight);
 
-  let y = ctx.y + 12;
+  let y = ctx.y + 7;
   doc.font('Helvetica-Bold').fontSize(8.3).fillColor(C.primary);
   doc.text('RÉCAPITULATIF FINANCIER', x + 10, y, { width: boxW - 20 });
-  y += 14;
+  y += 19;
 
   for (const row of rows) {
     doc.font('Helvetica').fontSize(8).fillColor(C.textSec).text(row.label, x + 10, y, { width: boxW * 0.55 });
@@ -812,6 +847,9 @@ function drawTotals(ctx: Ctx): void {
     width: boxW * 0.55 - 16,
     align: 'right',
   });
+
+  doc.font('Helvetica').fontSize(6.8).fillColor(C.textSec);
+  doc.text('Montant net à payer', x + 16, y + 20, { width: boxW - 32 });
 
   ctx.y += h + 12;
 }
@@ -954,6 +992,49 @@ function drawSignature(ctx: Ctx): void {
     .strokeColor(C.textMuted)
     .lineWidth(0.5)
     .stroke();
+
+  ctx.y += h + 12;
+}
+
+function drawPremiumClosingNote(ctx: Ctx): void {
+  const { doc } = ctx;
+  const title = ctx.docType === 'devis' ? 'ENGAGEMENT DE SERVICE NEOVOLT' : 'MERCI POUR VOTRE CONFIANCE';
+  const lines =
+    ctx.docType === 'devis'
+      ? [
+          "Ce devis est établi sur la base des informations techniques connues à la date d'émission.",
+          'Toute adaptation chantier fera l’objet d’un devis complémentaire validé avant exécution.',
+          'Une annexe CGV complète est jointe au présent document.',
+        ]
+      : [
+          'Cette facture correspond aux prestations réalisées selon devis et validation client.',
+          'Pour toute question, notre équipe reste disponible pour un suivi technique et administratif.',
+          'Une annexe CGV complète est jointe au présent document.',
+        ];
+
+  const pad = 12;
+  const textWidth = CW - pad * 2;
+  let h = 24;
+
+  for (const line of lines) {
+    h += measureText(doc, `- ${line}`, textWidth, 'Helvetica', 7.3) + 3;
+  }
+
+  ensureSpace(ctx, h + 10);
+
+  doc.roundedRect(MG, ctx.y, CW, h, 7).fill(C.bgLight);
+  doc.roundedRect(MG, ctx.y, CW, h, 7).strokeColor(C.accentBorder).lineWidth(0.7).stroke();
+
+  doc.font('Helvetica-Bold').fontSize(8.2).fillColor(C.accent);
+  doc.text(title, MG + pad, ctx.y + 10, { width: textWidth });
+
+  let y = ctx.y + 24;
+  doc.font('Helvetica').fontSize(7.3).fillColor(C.textSec);
+  for (const line of lines) {
+    const lineText = `- ${line}`;
+    doc.text(lineText, MG + pad, y, { width: textWidth });
+    y += measureText(doc, lineText, textWidth, 'Helvetica', 7.3) + 3;
+  }
 
   ctx.y += h + 12;
 }
@@ -1118,6 +1199,7 @@ function buildDocument(
       drawIbanBlock(ctx);
       drawConditions(ctx);
       drawSignature(ctx);
+      drawPremiumClosingNote(ctx);
       drawCgvAnnex(ctx);
 
       drawFooter(ctx);
