@@ -18,20 +18,20 @@ import {
   CheckCircle2,
   ArrowRight,
 } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
+import { Button } from '@/src/components/ui/button';
 import { useAppStore } from '@/lib/store';
-import { Sidebar } from '@/app/components/facturapro/sidebar';
-import { Dashboard } from '@/app/components/facturapro/dashboard';
-import { InvoiceList } from '@/app/components/facturapro/invoice-list';
-import { InvoiceDetail } from '@/app/components/facturapro/invoice-detail';
-import { InvoiceForm } from '@/app/components/facturapro/invoice-form';
-import { ClientList } from '@/app/components/facturapro/client-list';
-import { ClientDetail } from '@/app/components/facturapro/client-detail';
-import { ClientForm } from '@/app/components/facturapro/client-form';
-import { DevisList } from '@/app/components/facturapro/devis-list';
-import { DevisDetail } from '@/app/components/facturapro/devis-detail';
-import { DevisForm } from '@/app/components/facturapro/devis-form';
-import { SettingsPage } from '@/app/components/facturapro/settings';
+import { Sidebar } from '@/src/components/facturapro/sidebar';
+import { Dashboard } from '@/src/components/facturapro/dashboard';
+import { InvoiceList } from '@/src/components/facturapro/invoice-list';
+import { InvoiceDetail } from '@/src/components/facturapro/invoice-detail';
+import { InvoiceForm } from '@/src/components/facturapro/invoice-form';
+import { ClientList } from '@/src/components/facturapro/client-list';
+import { ClientDetail } from '@/src/components/facturapro/client-detail';
+import { ClientForm } from '@/src/components/facturapro/client-form';
+import { DevisList } from '@/src/components/facturapro/devis-list';
+import { DevisDetail } from '@/src/components/facturapro/devis-detail';
+import { DevisForm } from '@/src/components/facturapro/devis-form';
+import { SettingsPage } from '@/src/components/facturapro/settings';
 import { cn } from '@/lib/utils';
 
 /* ─────────────────────────────────────────────
