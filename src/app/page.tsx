@@ -138,7 +138,7 @@ const FEATURES = [
   {
     icon: Users,
     title: 'Gestion des clients',
-    desc: 'Un carnet d'adresses complet, centralisé et toujours à jour.',
+    desc: "Un carnet d'adresses complet, centralisé et toujours à jour.",
   },
   {
     icon: TrendingUp,
