@@ -1,132 +1,36 @@
-/* Tailwind layers — required for PostCSS + Tailwind */
+/* globals.css — compatible PostCSS/Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Third-party animations (keep if installed) */
+/* Third-party animations (si installé) */
 @import "tw-animate-css";
 
-/* Theme variables: provide oklch + hex fallback for broader support */
-:root {
+/* Variables avec fallback hex + oklch via @supports */
+:root{
   --radius: 0.625rem;
-
-  /* Core colors (hex fallbacks first for compatibility) */
-  --background: #fbfbfc; /* fallback */
-  --background-oklch: oklch(0.985 0 0);
-
+  --background: #fbfbfc;
   --foreground: #1f2937;
-  --foreground-oklch: oklch(0.145 0 0);
-
   --primary: #4f46e5;
-  --primary-oklch: oklch(0.546 0.245 262.881);
-
   --border: #e6eef6;
-  --border-oklch: oklch(0.922 0 0);
-
-  --accent: #3b82f6;
-  --accent-oklch: oklch(0.97 0 0);
-
-  /* Sidebar / chart tokens (fallbacks) */
-  --sidebar: #ffffff;
-  --sidebar-foreground: #0f172a;
-
-  /* Derived tokens */
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Dark mode: only override what changes */
-.dark {
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  --primary: #7c3aed;
-  --border: rgba(255,255,255,0.08);
-  --sidebar: #0b1220;
-  --sidebar-foreground: #f8fafc;
-}
-
-/* Apply oklch values where supported using color-mix fallback pattern */
 @supports (color: oklch(0.5 0.1 200)) {
-  :root {
-    --background: var(--background-oklch);
-    --foreground: var(--foreground-oklch);
-    --primary: var(--primary-oklch);
-    --border: var(--border-oklch);
-    --accent: var(--accent-oklch);
+  :root{
+    --background: oklch(0.985 0 0);
+    --foreground: oklch(0.145 0 0);
+    --primary: oklch(0.546 0.245 262.881);
+    --border: oklch(0.922 0 0);
   }
 }
 
-/* Base layer: prefer Tailwind utilities but add safe global defaults */
+/* Base layer */
 @layer base {
-  html, body {
-    background-color: var(--background);
-    color: var(--foreground);
-    font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  /* Inputs / buttons: consistent border and focus */
-  input, textarea, select, button {
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background-color: transparent;
-  }
-
-  /* Reduce global selector usage to avoid conflicts with Tailwind utilities */
+  html,body { background: var(--background); color: var(--foreground); }
+  input,textarea,select,button { border-radius: calc(var(--radius) - 4px); border: 1px solid var(--border); }
 }
 
-/* Custom scrollbar (scoped to main content) */
-.main-scrollbar, .overflow-auto {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(59,130,246,0.6) transparent;
-}
-
-.main-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.main-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.main-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(59,130,246,0.6);
-  border-radius: 3px;
-}
-.main-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(59,130,246,0.8);
-}
-
-/* Focus states: accessible and not overly aggressive */
-:focus {
-  outline: none;
-}
-:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-/* Motion preferences */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.001ms !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* Utility: subtle grid for dev only (disable in production) */
-@media (prefers-reduced-motion: no-preference) {
-  /* .dev-grid { background-image: linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px); background-size: 20px 20px; } */
-}
-
-/* Keep custom component styles in components layer if needed */
-@layer components {
-  .card {
-    @apply bg-card text-card-foreground rounded-lg shadow-sm border;
-    border-color: var(--border);
-  }
-}
+/* Scoped scrollbar utility (apply class main-scrollbar where needed) */
+.main-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(59,130,246,0.6) transparent; }
+.main-scrollbar::-webkit-scrollbar { width:6px; height:6px; }
+.main-scrollbar::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.6); border-radius:3px; }
