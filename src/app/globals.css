@@ -1,36 +1,224 @@
-/* globals.css — compatible PostCSS/Tailwind */
+/* globals.css - Premium, moderne, animé */
+/* Tailwind layers (obligatoires pour PostCSS + Tailwind) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Third-party animations (si installé) */
-@import "tw-animate-css";
+/* Optional third party animations if installed */
+/* @import "tw-animate-css"; */
 
-/* Variables avec fallback hex + oklch via @supports */
-:root{
+/* =========================
+   Theme variables and fallbacks
+   ========================= */
+:root {
   --radius: 0.625rem;
-  --background: #fbfbfc;
-  --foreground: #1f2937;
-  --primary: #4f46e5;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Core colors - hex fallbacks for broad compatibility */
+  --bg: #fbfbfc;
+  --fg: #0f172a;
+  --muted: #64748b;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --primary: #2563eb;
+  --primary-600: #1d4ed8;
+  --accent: #06b6d4;
   --border: #e6eef6;
+  --success: #16a34a;
+  --danger: #ef4444;
+  --glass: rgba(255,255,255,0.6);
+
+  /* Utility tokens */
+  --shadow-sm: 0 1px 2px rgba(16,24,40,0.04);
+  --shadow-md: 0 6px 18px rgba(16,24,40,0.08);
+  --glass-border: rgba(255,255,255,0.12);
+  --focus-ring: 0 0 0 4px rgba(37,99,235,0.12);
 }
 
+/* Use oklch when supported for richer color control */
 @supports (color: oklch(0.5 0.1 200)) {
-  :root{
-    --background: oklch(0.985 0 0);
-    --foreground: oklch(0.145 0 0);
+  :root {
+    --bg: oklch(0.985 0 0);
+    --fg: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
     --primary: oklch(0.546 0.245 262.881);
+    --accent: oklch(0.6 0.12 190);
     --border: oklch(0.922 0 0);
+    --glass: oklch(1 0 0 / 0.6);
   }
 }
 
-/* Base layer */
-@layer base {
-  html,body { background: var(--background); color: var(--foreground); }
-  input,textarea,select,button { border-radius: calc(var(--radius) - 4px); border: 1px solid var(--border); }
+/* Dark mode overrides using class strategy */
+.dark {
+  --bg: #0b1220;
+  --fg: #f8fafc;
+  --muted: #94a3b8;
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+  --primary: #7c3aed;
+  --primary-600: #6d28d9;
+  --accent: #06b6d4;
+  --border: rgba(255,255,255,0.06);
+  --glass: rgba(15,23,42,0.6);
+  --shadow-sm: 0 1px 2px rgba(2,6,23,0.6);
+  --shadow-md: 0 10px 30px rgba(2,6,23,0.6);
+  --glass-border: rgba(255,255,255,0.04);
+  --focus-ring: 0 0 0 4px rgba(124,58,237,0.12);
 }
 
-/* Scoped scrollbar utility (apply class main-scrollbar where needed) */
-.main-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(59,130,246,0.6) transparent; }
-.main-scrollbar::-webkit-scrollbar { width:6px; height:6px; }
-.main-scrollbar::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.6); border-radius:3px; }
+/* =========================
+   Base layer
+   ========================= */
+@layer base {
+  html, body {
+    height: 100%;
+    background-color: var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Inputs and buttons baseline */
+  input, textarea, select, button {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background-color: transparent;
+    color: inherit;
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Reduce global selector usage to avoid Tailwind conflicts */
+  img { display: block; max-width: 100%; height: auto; }
+}
+
+/* =========================
+   Components layer
+   ========================= */
+@layer components {
+  /* Premium card */
+  .premium-card {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, transparent), transparent);
+    color: var(--card-foreground);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    transition: transform 220ms cubic-bezier(.2,.9,.3,1), box-shadow 220ms;
+  }
+  .premium-card:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(2,6,23,0.12); }
+
+  /* Accent button */
+  .accent-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: linear-gradient(90deg, var(--primary), var(--primary-600));
+    color: white;
+    padding: 0.5rem 0.9rem;
+    border-radius: 999px;
+    border: none;
+    box-shadow: 0 6px 18px rgba(37,99,235,0.12);
+    transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms;
+  }
+  .accent-btn:hover { transform: translateY(-2px); filter: brightness(1.03); }
+  .accent-btn:active { transform: translateY(0); box-shadow: 0 4px 12px rgba(37,99,235,0.08); }
+
+  /* Glass panel */
+  .glass {
+    background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.4));
+    backdrop-filter: blur(8px) saturate(120%);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 1rem;
+  }
+
+  /* Table fixed layout for invoices */
+  .table-fixed {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+  .table-fixed th, .table-fixed td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  .table-fixed th { font-weight: 600; color: var(--muted); font-size: 0.85rem; }
+
+  /* Tiny utility for subtle divider */
+  .sub-divider { height: 1px; background: var(--border); width: 100%; margin: 0.75rem 0; border-radius: 2px; }
+}
+
+/* =========================
+   Utilities layer
+   ========================= */
+@layer utilities {
+  /* Scoped scrollbar utility */
+  .main-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(37,99,235,0.5) transparent; }
+  .main-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+  .main-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .main-scrollbar::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.45); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+  .main-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(37,99,235,0.6); }
+
+  /* Focus states */
+  .focus-ring {
+    box-shadow: var(--focus-ring);
+    outline: none;
+    border-color: color-mix(in srgb, var(--primary) 60%, transparent);
+  }
+
+  /* Tiny helpers */
+  .text-muted { color: var(--muted); }
+  .rounded-lg-soft { border-radius: calc(var(--radius) + 4px); }
+  .elevate { box-shadow: var(--shadow-md); }
+}
+
+/* =========================
+   Animations and motion
+   ========================= */
+/* Entrance animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Animation utility classes */
+.animate-entrance { animation: fadeInUp 420ms cubic-bezier(.2,.9,.3,1) both; }
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-entrance, .animate-shimmer, *[class*="animate-"] { animation: none !important; transition: none !important; }
+}
+
+/* =========================
+   Accessibility and preferences
+   ========================= */
+:focus { outline: none; }
+:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); border-radius: 6px; }
+
+/* Reduced motion global fallback */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+/* =========================
+   Dev helpers (comment out in production)
+   ========================= */
+/* .dev-grid { background-image: linear-gradient(rgba(2,6,23,0.02) 1px, transparent 1px); background-size: 20px 20px; } */
