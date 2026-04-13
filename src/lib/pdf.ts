@@ -307,11 +307,6 @@ function drawHeader(ctx: Ctx): void {
   doc.font('Helvetica-Bold').fontSize(16).fillColor(C.primary).text(name, lx, ly, { width: leftW });
   ly += nameHeight + 4;
 
-  if (clean(company.legalForm)) {
-    doc.font('Helvetica').fontSize(8).fillColor(C.textSec).text(clean(company.legalForm), lx, ly, { width: leftW });
-    ly += 12;
-  }
-
   const identityLines: string[] = [];
   if (clean(company.address)) identityLines.push(clean(company.address));
   if (clean(company.addressComplement)) identityLines.push(clean(company.addressComplement));
@@ -796,54 +791,6 @@ function drawConditions(ctx: Ctx): void {
   ctx.y += h + 12;
 }
 
-function drawSellerLegalCard(ctx: Ctx): void {
-  const { doc, company } = ctx;
-  const lines: string[] = [];
-
-  if (clean(company.legalForm)) lines.push(`Forme juridique : ${clean(company.legalForm)}`);
-  const address = [clean(company.address), clean(company.addressComplement), companyAddressLine(company)]
-    .filter(Boolean)
-    .join(', ');
-  if (address) lines.push(`Siège social : ${address}`);
-  if (clean(company.siret)) lines.push(`SIRET : ${clean(company.siret)}`);
-  if (clean(company.rcsNumber)) lines.push(`RCS : ${clean(company.rcsNumber)}`);
-  if (ctx.ae) {
-    lines.push('TVA : non applicable, article 293 B du CGI');
-  } else if (clean(company.tvaNumber)) {
-    lines.push(`TVA intracommunautaire : ${clean(company.tvaNumber)}`);
-  }
-  if (clean(company.socialCapital)) lines.push(`Capital social : ${clean(company.socialCapital)}`);
-  if (clean(company.directorName)) {
-    const title = clean(company.directorTitle);
-    lines.push(`Responsable : ${clean(company.directorName)}${title ? ` (${title})` : ''}`);
-  }
-
-  if (lines.length === 0) return;
-
-  const pad = 12;
-  const textWidth = CW - pad * 2;
-  let h = 24;
-  for (const line of lines) {
-    h += measureText(doc, line, textWidth, 'Helvetica', 7.2) + 2;
-  }
-
-  ensureSpace(ctx, h + 10);
-
-  doc.roundedRect(MG, ctx.y, CW, h, 6).fill(C.white);
-  doc.roundedRect(MG, ctx.y, CW, h, 6).strokeColor(C.border).lineWidth(0.6).stroke();
-  doc.font('Helvetica-Bold').fontSize(8).fillColor(C.primary);
-  doc.text('IDENTITÉ LÉGALE DU VENDEUR', MG + pad, ctx.y + 10, { width: textWidth });
-
-  let y = ctx.y + 22;
-  doc.font('Helvetica').fontSize(7.2).fillColor(C.textSec);
-  for (const line of lines) {
-    doc.text(line, MG + pad, y, { width: textWidth });
-    y += measureText(doc, line, textWidth, 'Helvetica', 7.2) + 2;
-  }
-
-  ctx.y += h + 12;
-}
-
 function drawSignature(ctx: Ctx): void {
   if (ctx.docType !== 'devis') return;
 
@@ -953,7 +900,6 @@ function buildDocument(
       drawTotals(ctx);
       drawIbanBlock(ctx);
       drawConditions(ctx);
-      drawSellerLegalCard(ctx);
       drawSignature(ctx);
 
       drawFooter(ctx);
