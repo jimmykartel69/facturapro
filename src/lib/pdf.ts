@@ -451,7 +451,7 @@ function drawHeader(ctx: Ctx): void {
     ['Émis le', fmtDate(ctx.issueDate)],
   ];
   if (ctx.extraDate) {
-    const eLabel = isDevis ? 'Valable jusqu'au' : 'Échéance';
+    const eLabel = isDevis ? "Valable jusqu'au" : 'Échéance';
     metaRows.push([eLabel, fmtDate(ctx.extraDate)]);
   }
   if (s(ctx.devisNumber)) {
