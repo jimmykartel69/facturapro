@@ -72,6 +72,12 @@ interface ColWidths {
   total: number;
 }
 
+interface CgvSection {
+  title: string;
+  paragraphs: string[];
+  bullets?: string[];
+}
+
 const C = {
   primary: '#0f172a',
   accent: '#2563eb',
@@ -86,6 +92,120 @@ const C = {
   border: '#dbe3ef',
   success: '#16a34a',
 };
+
+const NEOVOLT_CGV_SECTIONS: CgvSection[] = [
+  {
+    title: '1. Objet',
+    paragraphs: [
+      "Les présentes Conditions Générales de Vente (CGV) définissent les modalités d'intervention de la société NeoVolt, spécialisée en travaux d'électricité générale, auprès de ses clients professionnels et particuliers.",
+      'Toute signature de devis implique l’acceptation sans réserve des présentes CGV.',
+    ],
+  },
+  {
+    title: '2. Devis et commande',
+    paragraphs: ['Les devis émis par NeoVolt sont valables pour une durée de 30 jours à compter de leur date d’émission.'],
+    bullets: [
+      'signature du devis avec la mention « Bon pour accord »',
+      "versement de l'acompte prévu",
+    ],
+  },
+  {
+    title: '3. Modalités de paiement',
+    paragraphs: [
+      'Un acompte de 30 % est exigible à la signature du devis pour toute prestation supérieure à 500 €.',
+      'Le solde est payable à réception de la facture, par virement bancaire, sans escompte.',
+      'Aucun escompte ne sera accordé pour paiement anticipé.',
+    ],
+  },
+  {
+    title: '4. Retard de paiement',
+    paragraphs: [
+      'Tout retard de paiement entraînera, de plein droit et sans mise en demeure préalable :',
+      "conformément à l'article L441-10 du Code de commerce.",
+      "NeoVolt se réserve le droit de suspendre toute intervention en cours en cas de non-paiement.",
+    ],
+    bullets: [
+      'l’application de pénalités calculées sur la base du taux directeur de la Banque Centrale Européenne majoré de 10 points',
+      'une indemnité forfaitaire de 40 € pour frais de recouvrement',
+    ],
+  },
+  {
+    title: "5. Délais d'intervention",
+    paragraphs: ['Les délais d’intervention sont donnés à titre indicatif.'],
+    bullets: [
+      'indisponibilité des matériaux',
+      'conditions climatiques',
+      'contraintes techniques imprévues',
+      'retard imputable au client',
+    ],
+  },
+  {
+    title: '6. Exécution des travaux',
+    paragraphs: [
+      'Les travaux sont réalisés conformément au devis accepté.',
+      "Toute modification demandée en cours de prestation fera l'objet d'un devis complémentaire.",
+      "Le client s'engage à :",
+    ],
+    bullets: [
+      "garantir l'accès au chantier",
+      'fournir un environnement sécurisé',
+      'signaler toute contrainte technique connue',
+    ],
+  },
+  {
+    title: '7. Réserve de propriété',
+    paragraphs: ['Les équipements, matériels et installations fournis restent la propriété de NeoVolt jusqu’au paiement intégral de la facture.'],
+  },
+  {
+    title: '8. Responsabilité',
+    paragraphs: [
+      "NeoVolt est tenu à une obligation de moyens dans l'exécution de ses prestations.",
+      'La responsabilité de NeoVolt ne pourra être engagée en cas de :',
+    ],
+    bullets: [
+      'mauvaise utilisation des installations',
+      "intervention d'un tiers",
+      "défaut non détectable lors de l'intervention",
+    ],
+  },
+  {
+    title: '9. Garanties',
+    paragraphs: ['Les prestations bénéficient des garanties légales en vigueur :'],
+    bullets: [
+      'garantie de parfait achèvement',
+      'garantie biennale',
+      'garantie décennale (si applicable)',
+    ],
+  },
+  {
+    title: '10. Annulation',
+    paragraphs: ['Toute annulation de commande après signature pourra entraîner la facturation :'],
+    bullets: [
+      "de l'acompte versé (conservé)",
+      'des frais engagés (matériel, déplacement, main-d’œuvre)',
+    ],
+  },
+  {
+    title: '11. Litiges et juridiction compétente',
+    paragraphs: ['Tout litige relatif à l’exécution des prestations sera soumis aux tribunaux compétents du ressort du siège social de NeoVolt, sauf disposition légale contraire.'],
+  },
+  {
+    title: '12. Droit applicable',
+    paragraphs: ['Les présentes CGV sont soumises au droit français.'],
+  },
+  {
+    title: "13. Clause d'arrêt immédiat chantier",
+    paragraphs: ['NeoVolt se réserve le droit d’interrompre immédiatement les travaux en cas de défaut de paiement ou de non-respect des conditions contractuelles, sans que cela n’engage sa responsabilité.'],
+  },
+  {
+    title: '14. Clause de réception chantier',
+    paragraphs: ['Les travaux sont réputés réceptionnés sans réserve si aucune contestation écrite n’est formulée dans un délai de 48 heures après intervention.'],
+  },
+  {
+    title: '15. Clause matériaux / hausse prix',
+    paragraphs: ['En cas de variation significative du coût des matériaux, NeoVolt se réserve le droit d’ajuster les tarifs après information du client.'],
+  },
+];
 
 const PW = 595.28;
 const PH = 841.89;
@@ -838,6 +958,103 @@ function drawSignature(ctx: Ctx): void {
   ctx.y += h + 12;
 }
 
+function estimateCgvSectionHeight(doc: PDFDocument, section: CgvSection, width: number): number {
+  let height = 10;
+  height += measureText(doc, section.title, width, 'Helvetica-Bold', 8.2) + 3;
+
+  for (const paragraph of section.paragraphs) {
+    height += measureText(doc, paragraph, width, 'Helvetica', 7.2) + 2;
+  }
+
+  if (section.bullets) {
+    for (const bullet of section.bullets) {
+      height += measureText(doc, `- ${bullet}`, width, 'Helvetica', 7.2) + 2;
+    }
+  }
+
+  return Math.max(34, height + 8);
+}
+
+function startCgvAnnexPage(ctx: Ctx, continuation = false): void {
+  drawFooter(ctx);
+  ctx.doc.addPage();
+  ctx.pageNum += 1;
+  ctx.y = MG;
+
+  drawAccentBar(ctx);
+
+  const title = continuation
+    ? 'ANNEXE - CONDITIONS GENERALES DE VENTE (SUITE)'
+    : 'ANNEXE - CONDITIONS GENERALES DE VENTE';
+
+  ctx.doc.font('Helvetica-Bold').fontSize(9.2).fillColor(C.primary);
+  ctx.doc.text(title, MG, 13, { width: CW * 0.7 });
+
+  ctx.doc.font('Helvetica').fontSize(7).fillColor(C.textSec);
+  ctx.doc.text(`${ctx.docType === 'devis' ? 'DEVIS' : 'FACTURE'} N° ${ctx.docNumber}`, MG + CW * 0.46, 13, {
+    width: CW * 0.54,
+    align: 'right',
+  });
+
+  const introHeight = continuation ? 24 : 40;
+  ctx.doc.roundedRect(MG, 36, CW, introHeight, 6).fill(C.bgLight);
+  ctx.doc.roundedRect(MG, 36, CW, introHeight, 6).strokeColor(C.border).lineWidth(0.6).stroke();
+
+  ctx.doc.font('Helvetica-Bold').fontSize(8).fillColor(C.primary);
+  ctx.doc.text('Société : NeoVolt', MG + 10, 44, { width: CW - 20 });
+
+  ctx.doc.font('Helvetica').fontSize(7.2).fillColor(C.textSec);
+  const introText = continuation
+    ? 'Suite des clauses contractuelles annexées.'
+    : "Les présentes CGV sont annexées au document et s'appliquent aux prestations d'électricité générale.";
+  ctx.doc.text(introText, MG + 10, 56, { width: CW - 20 });
+
+  ctx.y = 36 + introHeight + 10;
+}
+
+function drawCgvAnnex(ctx: Ctx): void {
+  const { doc } = ctx;
+  const padX = 11;
+  const textWidth = CW - padX * 2;
+
+  startCgvAnnexPage(ctx, false);
+
+  const ensureCgvSpace = (needed: number): void => {
+    if (ctx.y + needed <= CONTENT_BOTTOM) return;
+    startCgvAnnexPage(ctx, true);
+  };
+
+  for (const section of NEOVOLT_CGV_SECTIONS) {
+    const blockHeight = estimateCgvSectionHeight(doc, section, textWidth);
+    ensureCgvSpace(blockHeight + 8);
+
+    doc.roundedRect(MG, ctx.y, CW, blockHeight, 5).fill(C.white);
+    doc.roundedRect(MG, ctx.y, CW, blockHeight, 5).strokeColor(C.border).lineWidth(0.45).stroke();
+
+    let y = ctx.y + 8;
+
+    doc.font('Helvetica-Bold').fontSize(8.2).fillColor(C.accent);
+    doc.text(section.title, MG + padX, y, { width: textWidth });
+    y += measureText(doc, section.title, textWidth, 'Helvetica-Bold', 8.2) + 3;
+
+    doc.font('Helvetica').fontSize(7.2).fillColor(C.textSec);
+    for (const paragraph of section.paragraphs) {
+      doc.text(paragraph, MG + padX, y, { width: textWidth });
+      y += measureText(doc, paragraph, textWidth, 'Helvetica', 7.2) + 2;
+    }
+
+    if (section.bullets) {
+      for (const bullet of section.bullets) {
+        const bulletText = `- ${bullet}`;
+        doc.text(bulletText, MG + padX, y, { width: textWidth });
+        y += measureText(doc, bulletText, textWidth, 'Helvetica', 7.2) + 2;
+      }
+    }
+
+    ctx.y += blockHeight + 8;
+  }
+}
+
 function buildDocument(
   company: CompanyInfo,
   client: Client,
@@ -901,6 +1118,7 @@ function buildDocument(
       drawIbanBlock(ctx);
       drawConditions(ctx);
       drawSignature(ctx);
+      drawCgvAnnex(ctx);
 
       drawFooter(ctx);
 
