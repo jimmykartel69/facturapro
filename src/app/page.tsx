@@ -18,20 +18,20 @@ import {
   CheckCircle2,
   ArrowRight,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/app/components/ui/button';
 import { useAppStore } from '@/lib/store';
-import { Sidebar } from '@/components/facturapro/sidebar';
-import { Dashboard } from '@/components/facturapro/dashboard';
-import { InvoiceList } from '@/components/facturapro/invoice-list';
-import { InvoiceDetail } from '@/components/facturapro/invoice-detail';
-import { InvoiceForm } from '@/components/facturapro/invoice-form';
-import { ClientList } from '@/components/facturapro/client-list';
-import { ClientDetail } from '@/components/facturapro/client-detail';
-import { ClientForm } from '@/components/facturapro/client-form';
-import { DevisList } from '@/components/facturapro/devis-list';
-import { DevisDetail } from '@/components/facturapro/devis-detail';
-import { DevisForm } from '@/components/facturapro/devis-form';
-import { SettingsPage } from '@/components/facturapro/settings';
+import { Sidebar } from '@/app/components/facturapro/sidebar';
+import { Dashboard } from '@/app/components/facturapro/dashboard';
+import { InvoiceList } from '@/app/components/facturapro/invoice-list';
+import { InvoiceDetail } from '@/app/components/facturapro/invoice-detail';
+import { InvoiceForm } from '@/app/components/facturapro/invoice-form';
+import { ClientList } from '@/app/components/facturapro/client-list';
+import { ClientDetail } from '@/app/components/facturapro/client-detail';
+import { ClientForm } from '@/app/components/facturapro/client-form';
+import { DevisList } from '@/app/components/facturapro/devis-list';
+import { DevisDetail } from '@/app/components/facturapro/devis-detail';
+import { DevisForm } from '@/app/components/facturapro/devis-form';
+import { SettingsPage } from '@/app/components/facturapro/settings';
 import { cn } from '@/lib/utils';
 
 /* ─────────────────────────────────────────────
@@ -133,7 +133,7 @@ const FEATURES = [
   {
     icon: FileText,
     title: "Factures en 30 secondes",
-    desc: "Créez une facture complète et professionnelle en moins d’une minute.",
+    desc: "Créez une facture complète et professionnelle en moins d'une minute.",
   },
   {
     icon: Users,
@@ -143,7 +143,7 @@ const FEATURES = [
   {
     icon: TrendingUp,
     title: "Vision claire de votre activité",
-    desc: "Suivez votre chiffre d’affaires et vos paiements en temps réel.",
+    desc: "Suivez votre chiffre d'affaires et vos paiements en temps réel.",
   },
   {
     icon: CheckCircle2,
@@ -394,13 +394,14 @@ function LoginPage(): JSX.Element {
                 <div className="flex items-center justify-between mb-0.5">
                   <label className="input-label" htmlFor="auth-password">Mot de passe *</label>
                   {!isRegister && (
-                    <a
-                      href="#"
+                    <button
+                      type="button"
                       className="text-xs font-medium transition-opacity hover:opacity-70"
                       style={{ color: 'var(--brand)' }}
+                      onClick={(e) => e.preventDefault()}
                     >
                       Oublié ?
-                    </a>
+                    </button>
                   )}
                 </div>
                 <input
@@ -645,7 +646,8 @@ export default function FacturaProApp(): JSX.Element {
     fetchSession();
   }, [fetchSession]);
 
-  if (authLoading)     return <LoadingScreen />;
+  if (authLoading)
+    return <LoadingScreen />;
   if (!isAuthenticated) return <LoginPage />;
   return <AuthenticatedApp />;
 }
