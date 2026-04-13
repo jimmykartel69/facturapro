@@ -18,7 +18,7 @@ import {
   CheckCircle2,
   ArrowRight,
 } from 'lucide-react';
-import { Button } from '@/src/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { Sidebar } from '@/components/facturapro/sidebar';
 import { Dashboard } from '@/components/facturapro/dashboard';
