@@ -3,10 +3,24 @@ import { db } from '@/lib/db';
 import { verifyPassword, generateSessionToken } from '@/lib/auth';
 import { createSessionCookie } from '@/lib/session';
 
+const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { email, password } = body;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Payload JSON invalide' }, { status: 400 });
+    }
+
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Corps de requête invalide' }, { status: 400 });
+    }
+
+    const payload = body as Record<string, unknown>;
+    const email = String(payload.email ?? '').trim().toLowerCase();
+    const password = String(payload.password ?? '');
 
     if (!email || !password) {
       return NextResponse.json(
@@ -15,8 +29,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validation légère pour éviter des requêtes DB inutiles sur des entrées manifestement invalides.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'Format d\'email invalide' }, { status: 400 });
+    }
+
     const user = await db.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email },
       select: {
         id: true,
         email: true,
@@ -34,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     const sessionToken = generateSessionToken();
-    const sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const sessionExpiry = new Date(Date.now() + SESSION_DURATION_MS);
 
     await db.user.update({
       where: { id: user.id },
