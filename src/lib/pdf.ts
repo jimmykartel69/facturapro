@@ -1,9 +1,8 @@
 import PDFDocument from 'pdfkit';
-import type { Devis, DevisItem, Client, Invoice, InvoiceItem } from '@prisma/client';
+import type { Client, Devis, DevisItem, Invoice, InvoiceItem } from '@prisma/client';
 
-// ═══════════════════════════════════════════════════════════════
-// TYPES
-// ═══════════════════════════════════════════════════════════════
+type DocType = 'devis' | 'invoice';
+type BillingItem = DevisItem | InvoiceItem;
 
 interface CompanyInfo {
   companyName?: string | null;
@@ -15,6 +14,7 @@ interface CompanyInfo {
   city?: string | null;
   phone?: string | null;
   professionalEmail?: string | null;
+  website?: string | null;
   siret?: string | null;
   tvaNumber?: string | null;
   rcsNumber?: string | null;
@@ -35,936 +35,880 @@ interface CompanyInfo {
   directorTitle?: string | null;
 }
 
+interface TotalsBreakdown {
+  grossHt: number;
+  discountRate: number;
+  discountAmount: number;
+  netHt: number;
+  vatByRate: Array<{ rate: number; amount: number }>;
+  totalVat: number;
+  totalTtc: number;
+}
+
 interface Ctx {
-  doc: PDFKit.PDFDocument;
+  doc: PDFDocument;
   y: number;
   pageNum: number;
   company: CompanyInfo;
   client: Client;
   ae: boolean;
-  docType: 'devis' | 'invoice';
+  docType: DocType;
   docNumber: string;
   issueDate: Date;
   extraDate?: Date;
   devisNumber?: string | null;
-  items: (DevisItem | InvoiceItem)[];
+  items: BillingItem[];
   globalDiscount: number;
+  documentNotes?: string | null;
+  totals: TotalsBreakdown;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// DESIGN SYSTEM — Finance Luxe palette (aligned with globals.css)
-// ═══════════════════════════════════════════════════════════════
+interface ColWidths {
+  desc: number;
+  qty: number;
+  unit: number;
+  pu: number;
+  tva?: number;
+  total: number;
+}
 
-const P = {
-  // Core
-  navy:        '#0c1330',   // --fg / dark primary
-  navyMid:     '#111d4a',   // mid-dark for panels
-  navyLight:   '#1e2d5a',   // lighter navy surfaces
-
-  // Brand indigo
-  brand:       '#1a3cff',
-  brandDark:   '#1230d6',
-  brandSoft:   '#dce5ff',   // light tinted bg
-  brandBorder: '#b3c4ff',
-
-  // Gold accent
-  gold:        '#c8973a',
-  goldLight:   '#fdf3e0',
-  goldBorder:  '#e8c98a',
-
-  // Grays
-  white:       '#ffffff',
-  bg:          '#f4f6fb',
-  bgStripe:    '#eef1f8',
-  surface:     '#ffffff',
-
-  // Text
-  text:        '#0c1330',
-  textSec:     '#374166',
-  textMuted:   '#6b7499',
-  textHint:    '#9ba3c4',
-
-  // Borders
-  border:      '#dce3f0',
-  borderMid:   '#c4cfea',
-
-  // Semantic
-  paid:        '#0f7b55',
-  paidBg:      '#e6f7f2',
+const C = {
+  primary: '#0f172a',
+  accent: '#2563eb',
+  accentSoft: '#dbeafe',
+  accentBorder: '#93c5fd',
+  white: '#ffffff',
+  bgLight: '#f8fafc',
+  bgStripe: '#f1f5f9',
+  text: '#1e293b',
+  textSec: '#475569',
+  textMuted: '#94a3b8',
+  border: '#dbe3ef',
+  success: '#16a34a',
 };
 
-// ═══════════════════════════════════════════════════════════════
-// LAYOUT CONSTANTS
-// ═══════════════════════════════════════════════════════════════
+const PW = 595.28;
+const PH = 841.89;
+const MG = 45;
+const CW = PW - 2 * MG;
+const FOOTER_Y = PH - 38;
+const CONTENT_BOTTOM = FOOTER_Y - 12;
 
-const PW           = 595.28;   // A4 width pts
-const PH           = 841.89;   // A4 height pts
-const MG           = 44;       // page margin
-const CW           = PW - 2 * MG;   // content width
-const FOOTER_H     = 32;
-const FOOTER_Y     = PH - FOOTER_H;
-const CONTENT_BTOM = FOOTER_Y - 14;
-const HEADER_BAND  = 5;        // top accent bar height
-
-// ═══════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════
-
-function s(t: string | null | undefined): string {
-  return t && String(t).trim() ? String(t).trim() : '';
+function clean(value: unknown): string {
+  if (typeof value === 'string') return value.trim();
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
 }
 
-function fmtCur(a: number): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(a);
+function toNum(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
-function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }).format(d);
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
-function isAE(lf?: string | null): boolean {
+function fmtCur(amount: number): string {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+}
+
+function fmtDate(date: Date): string {
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function fmtQty(value: number): string {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(value);
+}
+
+function fmtPercent(value: number): string {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);
+}
+
+function isAE(legalForm?: string | null): boolean {
+  const lf = clean(legalForm).toLowerCase();
   if (!lf) return false;
-  const l = lf.toLowerCase();
   return (
-    l.includes('auto-entrepreneur') ||
-    l.includes('auto entrepreneur') ||
-    l.includes('micro-entreprise') ||
-    l.includes('micro entreprise')
+    lf.includes('auto-entrepreneur') ||
+    lf.includes('auto entrepreneur') ||
+    lf.includes('micro-entreprise') ||
+    lf.includes('micro entreprise')
   );
 }
 
-function fmtIban(i: string): string {
-  return i.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim();
+function fmtIban(iban: string): string {
+  return iban.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim();
 }
 
-/** Height of a table row given its description content */
-function rowHeight(doc: PDFKit.PDFDocument, text: string, colW: number): number {
-  doc.font('Helvetica').fontSize(8.5);
-  const h = doc.heightOfString(text || ' ', { width: colW - 12 });
-  return Math.max(26, h + 16);
-}
-
-/** Pixel-perfect text width measure */
-function tw(doc: PDFKit.PDFDocument, text: string, font = 'Helvetica', size = 8.5): number {
+function measureText(
+  doc: PDFDocument,
+  text: string,
+  width: number,
+  font: 'Helvetica' | 'Helvetica-Bold' | 'Helvetica-Oblique' = 'Helvetica',
+  size = 8,
+): number {
   doc.font(font).fontSize(size);
-  return doc.widthOfString(text);
+  return doc.heightOfString(text || ' ', { width });
 }
 
-/** Draw text only when non-empty */
-function st(
-  doc: PDFKit.PDFDocument,
-  text: string | null | undefined,
-  x: number,
-  y: number,
-  opts?: Record<string, unknown>,
-): void {
-  const v = s(text);
-  if (v) doc.text(v, x, y, opts);
+function companyDisplayName(company: CompanyInfo): string {
+  const companyName = clean(company.companyName);
+  if (companyName) return companyName;
+  const person = `${clean(company.firstName)} ${clean(company.name)}`.trim();
+  return person || 'Mon entreprise';
 }
 
-/** Draw a horizontal rule */
-function hr(
-  doc: PDFKit.PDFDocument,
-  x: number,
-  y: number,
-  w: number,
-  color = P.border,
-  lw = 0.4,
-): void {
-  doc.moveTo(x, y).lineTo(x + w, y).strokeColor(color).lineWidth(lw).stroke();
+function companyAddressLine(company: CompanyInfo): string {
+  return [clean(company.postalCode), clean(company.city)].filter(Boolean).join(' ');
 }
 
-/** Rounded rect helper */
-function rRect(
-  doc: PDFKit.PDFDocument,
-  x: number, y: number, w: number, h: number,
-  r: number,
-  fill?: string,
-  stroke?: string,
-  lw = 0.5,
-): void {
-  if (fill) {
-    doc.roundedRect(x, y, w, h, r).fill(fill);
+function clientName(client: Client): string {
+  return clean(client.company) || clean(client.name) || 'Client';
+}
+
+function clientAddressLine(client: Client): string {
+  return [clean(client.postalCode), clean(client.city)].filter(Boolean).join(' ');
+}
+
+function computeTotals(items: BillingItem[], globalDiscount: number, ae: boolean): TotalsBreakdown {
+  const grossHt = items.reduce((sum, item) => sum + toNum(item.quantity) * toNum(item.unitPrice), 0);
+  const discountRate = clamp(toNum(globalDiscount), 0, 100);
+  const discountAmount = grossHt * (discountRate / 100);
+  const netHt = Math.max(0, grossHt - discountAmount);
+
+  const vatMap = new Map<number, number>();
+  if (!ae) {
+    const ratio = grossHt > 0 ? netHt / grossHt : 1;
+
+    for (const item of items) {
+      const lineGross = toNum(item.quantity) * toNum(item.unitPrice);
+      const lineNet = lineGross * ratio;
+      const rate = Math.max(0, toNum(item.tvaRate));
+      if (rate <= 0 || lineNet <= 0) continue;
+      const lineVat = lineNet * (rate / 100);
+      vatMap.set(rate, (vatMap.get(rate) ?? 0) + lineVat);
+    }
   }
-  if (stroke) {
-    doc.roundedRect(x, y, w, h, r).strokeColor(stroke).lineWidth(lw).stroke();
-  }
-}
 
-// ═══════════════════════════════════════════════════════════════
-// COLUMN LAYOUT
-// ═══════════════════════════════════════════════════════════════
+  const vatByRate = Array.from(vatMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([rate, amount]) => ({ rate, amount }));
 
-interface ColLayout {
-  desc:  { x: number; w: number };
-  qty:   { x: number; w: number };
-  pu:    { x: number; w: number };
-  tva?:  { x: number; w: number };
-  total: { x: number; w: number };
-}
+  const totalVat = vatByRate.reduce((sum, line) => sum + line.amount, 0);
+  const totalTtc = netHt + totalVat;
 
-function getColLayout(ae: boolean): ColLayout {
-  let cx = MG;
-  const descW  = ae ? CW * 0.50 : CW * 0.40;
-  const qtyW   = CW * 0.09;
-  const puW    = ae ? CW * 0.22 : CW * 0.16;
-  const tvaW   = ae ? 0         : CW * 0.11;
-  const totalW = CW - descW - qtyW - puW - tvaW;
-
-  const descX = cx; cx += descW;
-  const qtyX  = cx; cx += qtyW;
-  const puX   = cx; cx += puW;
-  const tvaX  = cx; cx += tvaW;
-  const totX  = cx;
-
-  const layout: ColLayout = {
-    desc:  { x: descX, w: descW },
-    qty:   { x: qtyX,  w: qtyW  },
-    pu:    { x: puX,   w: puW   },
-    total: { x: totX,  w: totalW },
+  return {
+    grossHt,
+    discountRate,
+    discountAmount,
+    netHt,
+    vatByRate,
+    totalVat,
+    totalTtc,
   };
-
-  if (!ae && tvaW > 0) {
-    layout.tva = { x: tvaX, w: tvaW };
-  }
-
-  return layout;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// PAGE MANAGEMENT
-// ═══════════════════════════════════════════════════════════════
+function rowHeight(doc: PDFDocument, designation: string, description: string, width: number): number {
+  let h = 10;
+  if (designation) h += measureText(doc, designation, width, 'Helvetica-Bold', 8.3);
+  if (description) h += measureText(doc, description, width, 'Helvetica', 7.3) + 1;
+  return Math.max(30, h + 8);
+}
+
+function drawAccentBar(ctx: Ctx): void {
+  ctx.doc.rect(0, 0, PW, 4).fill(C.accent);
+  ctx.doc.rect(0, 4, PW, 1).fill(C.accentSoft);
+}
 
 function drawFooter(ctx: Ctx): void {
-  const { doc, company, pageNum } = ctx;
+  const { doc, pageNum, company } = ctx;
+  const savedY = doc.y;
 
-  // Thin gold top-border for footer zone
-  doc.moveTo(MG, FOOTER_Y - 1).lineTo(PW - MG, FOOTER_Y - 1)
-    .strokeColor(P.gold).lineWidth(0.8).stroke();
+  doc
+    .moveTo(MG, FOOTER_Y - 8)
+    .lineTo(PW - MG, FOOTER_Y - 8)
+    .strokeColor(C.border)
+    .lineWidth(0.5)
+    .stroke();
 
-  // Background strip
-  doc.rect(0, FOOTER_Y, PW, FOOTER_H).fill(P.navy);
+  doc.font('Helvetica').fontSize(6).fillColor(C.textMuted);
+  doc.text(companyDisplayName(company), MG, FOOTER_Y - 2, { width: CW * 0.25 });
 
-  const fy = FOOTER_Y + 10;
-
-  // Company name left
-  const cName = s(company.companyName) || [s(company.firstName), s(company.name)].join(' ').trim();
-  doc.font('Helvetica-Bold').fontSize(6.5).fillColor(P.white);
-  st(doc, cName, MG, fy);
-
-  // SIRET center
-  if (s(company.siret)) {
-    doc.font('Helvetica').fontSize(6).fillColor(P.textHint);
-    doc.text(`SIRET : ${s(company.siret)}`, PW / 2 - 60, fy, { width: 120, align: 'center' });
-  } else if (ctx.ae) {
-    doc.font('Helvetica-Oblique').fontSize(6).fillColor(P.textHint);
-    doc.text('TVA non applicable — art. 293 B du CGI', PW / 2 - 90, fy, { width: 180, align: 'center' });
+  const legalParts: string[] = [];
+  if (clean(company.siret)) legalParts.push(`SIRET ${clean(company.siret)}`);
+  if (clean(company.rcsNumber)) legalParts.push(`RCS ${clean(company.rcsNumber)}`);
+  if (ctx.ae) {
+    legalParts.push('TVA non applicable - art. 293 B CGI');
+  } else if (clean(company.tvaNumber)) {
+    legalParts.push(`TVA intracom ${clean(company.tvaNumber)}`);
   }
+  if (clean(company.website)) legalParts.push(clean(company.website));
+  doc.text(legalParts.join(' | '), MG + CW * 0.25, FOOTER_Y - 2, {
+    width: CW * 0.5,
+    align: 'center',
+  });
 
-  // Page number right — gold dot prefix
-  const pageLabel = `${pageNum}`;
-  doc.font('Helvetica-Bold').fontSize(7).fillColor(P.gold);
-  doc.text(pageLabel, PW - MG - 24, fy - 0.5, { width: 24, align: 'right' });
+  doc.text(`Page ${pageNum}`, PW - MG - 50, FOOTER_Y - 2, { width: 50, align: 'right' });
+  doc.y = savedY;
 }
 
 function doNewPage(ctx: Ctx): void {
   drawFooter(ctx);
   ctx.doc.addPage();
-  ctx.pageNum++;
+  ctx.pageNum += 1;
   ctx.y = MG;
 
-  // Top accent bar
   drawAccentBar(ctx);
-
-  // Mini continuation header
-  const lbl = ctx.docType === 'devis' ? 'DEVIS' : 'FACTURE';
-  ctx.doc.font('Helvetica').fontSize(7).fillColor(P.textMuted);
-  ctx.doc.text(`${lbl}  ·  ${ctx.docNumber}  ·  suite`, MG, HEADER_BAND + 9, { width: CW });
-  ctx.y = HEADER_BAND + 22;
+  const label = ctx.docType === 'devis' ? 'DEVIS' : 'FACTURE';
+  ctx.doc.font('Helvetica-Bold').fontSize(8).fillColor(C.primary);
+  ctx.doc.text(`${label} N° ${ctx.docNumber}`, MG, 13, { width: CW * 0.6 });
+  ctx.doc.font('Helvetica').fontSize(7).fillColor(C.textSec);
+  ctx.doc.text(`Date d'émission : ${fmtDate(ctx.issueDate)}`, MG + CW * 0.4, 13, {
+    width: CW * 0.6,
+    align: 'right',
+  });
+  ctx.y = 34;
 }
 
-function ensureSpace(ctx: Ctx, need: number, tableMode = false): void {
-  if (ctx.y + need > CONTENT_BTOM) {
-    doNewPage(ctx);
-    if (tableMode) drawTableHeader(ctx, getColLayout(ctx.ae));
-  }
+function ensureSpace(ctx: Ctx, needed: number, tableMode = false): void {
+  if (ctx.y + needed <= CONTENT_BOTTOM) return;
+
+  doNewPage(ctx);
+  if (tableMode) drawTableHeader(ctx, getColWidths(ctx.ae));
 }
-
-// ═══════════════════════════════════════════════════════════════
-// ACCENT BAR (top of every page)
-// ═══════════════════════════════════════════════════════════════
-
-function drawAccentBar(ctx: Ctx): void {
-  const { doc } = ctx;
-  // Navy base
-  doc.rect(0, 0, PW, HEADER_BAND).fill(P.navy);
-  // Gold right cap — 80 pts wide
-  doc.rect(PW - 80, 0, 80, HEADER_BAND).fill(P.gold);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// SECTION — HEADER (split panel design)
-// ═══════════════════════════════════════════════════════════════
 
 function drawHeader(ctx: Ctx): void {
   const { doc, company } = ctx;
-
-  // ── Dimensions ──
-  const leftPanelW  = CW * 0.52;
-  const rightPanelW = CW - leftPanelW - 10; // 10pt gutter
   const lx = MG;
-  const rx = MG + leftPanelW + 10;
+  const leftW = CW * 0.56;
+  const gap = 14;
+  const rx = lx + leftW + gap;
+  const rw = CW - leftW - gap;
+  let ly = 18;
 
-  // Estimate left content height to size the panel
-  const leftLines: string[] = [];
-  if (s(company.legalForm)) leftLines.push('');      // legalForm line
-  if (s(company.address)) leftLines.push('');
-  if (s(company.addressComplement)) leftLines.push('');
-  const cityLine = [s(company.postalCode), s(company.city)].join(' ').trim();
-  if (cityLine) leftLines.push('');
-  if (s(company.phone)) leftLines.push('');
-  if (s(company.professionalEmail)) leftLines.push('');
-  if (s(company.siret)) leftLines.push('');
-  if (s(company.tvaNumber)) leftLines.push('');
-  if (s(company.rcsNumber)) leftLines.push('');
-
-  const panelH = Math.max(
-    90,
-    HEADER_BAND + 10 + 20 + 14 + leftLines.length * 10 + 14,
-  );
-
-  const startY = HEADER_BAND + 8;
-
-  // ── Left company panel (subtle tinted bg) ──
-  rRect(doc, lx, startY, leftPanelW, panelH, 6, P.bg);
-  rRect(doc, lx, startY, leftPanelW, panelH, 6, undefined, P.border, 0.5);
-  // Brand accent left stripe
-  doc.roundedRect(lx, startY, 3, panelH, 2).fill(P.brand);
-
-  let ly = startY + 14;
-  const lxIn = lx + 14;
-  const lwIn = leftPanelW - 28;
-
-  // Logo
-  if (s(company.logoBase64) && s(company.logoMimeType)) {
+  if (clean(company.logoBase64) && clean(company.logoMimeType)) {
     try {
-      const buf = Buffer.from(company.logoBase64!, 'base64');
-      if (buf.length > 0) {
-        doc.image(buf, lxIn, ly, { fit: [60, 30] });
-        ly += 36;
+      const buffer = Buffer.from(clean(company.logoBase64), 'base64');
+      if (buffer.length > 0) {
+        doc.image(buffer, lx, ly, { fit: [74, 40] });
+        ly += 44;
       }
-    } catch { /* skip */ }
-  }
-
-  // Company name
-  const cName = s(company.companyName) || [s(company.firstName), s(company.name)].join(' ').trim() || 'Mon entreprise';
-  doc.font('Helvetica-Bold').fontSize(13).fillColor(P.navy);
-  doc.text(cName, lxIn, ly, { width: lwIn });
-  ly += doc.currentLineHeight() + 4;
-
-  // Legal form tag
-  if (s(company.legalForm)) {
-    const lfText = s(company.legalForm)!;
-    const lfW = tw(doc, lfText, 'Helvetica', 7) + 10;
-    rRect(doc, lxIn, ly, lfW, 14, 3, P.brandSoft);
-    doc.font('Helvetica').fontSize(7).fillColor(P.brand);
-    doc.text(lfText, lxIn + 5, ly + 3.5, { width: lfW - 10 });
-    ly += 20;
-  }
-
-  // Address & contacts
-  doc.font('Helvetica').fontSize(7.5).fillColor(P.textSec);
-
-  const detailLines: string[] = [];
-  if (s(company.address)) detailLines.push(s(company.address)!);
-  if (s(company.addressComplement)) detailLines.push(s(company.addressComplement)!);
-  if (cityLine) detailLines.push(cityLine);
-
-  // Divider before contacts
-  if (detailLines.length) {
-    for (const line of detailLines) {
-      doc.text(line, lxIn, ly, { width: lwIn });
-      ly += 10;
+    } catch {
+      // Ignore corrupted logos and continue PDF rendering.
     }
-    ly += 4;
   }
 
-  // Contacts — icon prefix simulation via unicode
-  doc.font('Helvetica').fontSize(7).fillColor(P.textMuted);
-  if (s(company.phone)) {
-    doc.text(`☎  ${s(company.phone)}`, lxIn, ly, { width: lwIn });
-    ly += 10;
-  }
-  if (s(company.professionalEmail)) {
-    doc.text(`✉  ${s(company.professionalEmail)}`, lxIn, ly, { width: lwIn });
-    ly += 10;
-  }
+  const name = companyDisplayName(company);
+  const nameHeight = measureText(doc, name, leftW, 'Helvetica-Bold', 16);
+  doc.font('Helvetica-Bold').fontSize(16).fillColor(C.primary).text(name, lx, ly, { width: leftW });
+  ly += nameHeight + 4;
 
-  // Legal IDs — subtle muted color
-  doc.font('Helvetica').fontSize(6.5).fillColor(P.textHint);
-  if (s(company.siret)) {
-    doc.text(`SIRET : ${s(company.siret)}`, lxIn, ly, { width: lwIn });
-    ly += 9;
-  }
-  if (s(company.tvaNumber)) {
-    doc.text(`N° TVA : ${s(company.tvaNumber)}`, lxIn, ly, { width: lwIn });
-    ly += 9;
-  }
-  if (s(company.rcsNumber)) {
-    doc.text(`RCS : ${s(company.rcsNumber)}`, lxIn, ly, { width: lwIn });
-    ly += 9;
+  if (clean(company.legalForm)) {
+    doc.font('Helvetica').fontSize(8).fillColor(C.textSec).text(clean(company.legalForm), lx, ly, { width: leftW });
+    ly += 12;
   }
 
-  // ── Right : doc type badge + meta ──
-  let ry = startY;
+  const identityLines: string[] = [];
+  if (clean(company.address)) identityLines.push(clean(company.address));
+  if (clean(company.addressComplement)) identityLines.push(clean(company.addressComplement));
+  if (companyAddressLine(company)) identityLines.push(companyAddressLine(company));
 
-  // Document type large badge (pill)
-  const isDevis   = ctx.docType === 'devis';
-  const labelText = isDevis ? 'DEVIS' : 'FACTURE';
-  const badgeColor = isDevis ? P.gold : P.brand;
-  const badgeBg    = isDevis ? P.goldLight : P.brandSoft;
+  const contact = [clean(company.phone), clean(company.professionalEmail), clean(company.website)]
+    .filter(Boolean)
+    .join(' | ');
+  if (contact) identityLines.push(contact);
 
-  // Large type badge
-  const badgeH = 36;
-  rRect(doc, rx, ry, rightPanelW, badgeH, 6, badgeBg);
-  rRect(doc, rx, ry, rightPanelW, badgeH, 6, undefined, isDevis ? P.goldBorder : P.brandBorder, 0.6);
-  doc.font('Helvetica-Bold').fontSize(17).fillColor(badgeColor);
-  doc.text(labelText, rx, ry + (badgeH - 17) / 2 + 1, { width: rightPanelW, align: 'center' });
-  ry += badgeH + 12;
+  const legal = [clean(company.siret) ? `SIRET ${clean(company.siret)}` : '', clean(company.rcsNumber) ? `RCS ${clean(company.rcsNumber)}` : '']
+    .filter(Boolean)
+    .join(' | ');
+  if (legal) identityLines.push(legal);
 
-  // Number — prominent
-  const numLabel = isDevis ? 'N° de devis' : 'N° de facture';
-  doc.font('Helvetica').fontSize(7.5).fillColor(P.textMuted);
-  doc.text(numLabel, rx, ry, { width: rightPanelW, align: 'right' });
-  ry += 11;
+  if (ctx.ae) {
+    identityLines.push('TVA non applicable - article 293 B du CGI');
+  } else if (clean(company.tvaNumber)) {
+    identityLines.push(`TVA intracommunautaire : ${clean(company.tvaNumber)}`);
+  }
 
-  doc.font('Helvetica-Bold').fontSize(12).fillColor(P.navy);
-  doc.text(ctx.docNumber, rx, ry, { width: rightPanelW, align: 'right' });
-  ry += 18;
+  doc.font('Helvetica').fontSize(7.3).fillColor(C.textSec);
+  for (const line of identityLines) {
+    const lineHeight = measureText(doc, line, leftW, 'Helvetica', 7.3);
+    doc.text(line, lx, ly, { width: leftW });
+    ly += lineHeight + 2;
+  }
 
-  // Divider
-  hr(doc, rx, ry, rightPanelW, P.border, 0.4);
-  ry += 9;
-
-  // Meta rows (date, échéance, ref devis)
-  const metaRows: Array<[string, string]> = [
-    ['Émis le', fmtDate(ctx.issueDate)],
+  const cardY = 18;
+  const cardPad = 11;
+  const label = ctx.docType === 'devis' ? 'DEVIS' : 'FACTURE';
+  const rows: Array<{ key: string; value: string }> = [
+    { key: 'Numéro', value: ctx.docNumber },
+    { key: "Date d'émission", value: fmtDate(ctx.issueDate) },
   ];
+
   if (ctx.extraDate) {
-    const eLabel = isDevis ? "Valable jusqu'au" : 'Échéance';
-    metaRows.push([eLabel, fmtDate(ctx.extraDate)]);
-  }
-  if (s(ctx.devisNumber)) {
-    metaRows.push(['Réf. devis', s(ctx.devisNumber)!]);
-  }
-
-  for (const [lbl, val] of metaRows) {
-    doc.font('Helvetica').fontSize(7.5).fillColor(P.textMuted);
-    doc.text(lbl, rx, ry, { width: rightPanelW * 0.46, align: 'left' });
-    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(P.text);
-    doc.text(val, rx + rightPanelW * 0.46, ry, { width: rightPanelW * 0.54, align: 'right' });
-    ry += 14;
+    rows.push({
+      key: ctx.docType === 'devis' ? 'Validité' : 'Échéance',
+      value: fmtDate(ctx.extraDate),
+    });
   }
 
-  ctx.y = Math.max(startY + panelH, ry) + 14;
+  if (clean(ctx.devisNumber)) {
+    rows.push({ key: 'Réf. devis', value: clean(ctx.devisNumber) });
+  }
+
+  const cardH = 28 + rows.length * 16 + cardPad;
+  doc.roundedRect(rx, cardY, rw, cardH, 8).fill(C.bgLight);
+  doc.roundedRect(rx, cardY, rw, cardH, 8).strokeColor(C.accentBorder).lineWidth(0.8).stroke();
+
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(C.accent).text(label, rx + cardPad, cardY + 10, { width: rw - cardPad * 2 });
+
+  let rowY = cardY + 26;
+  for (const row of rows) {
+    doc.font('Helvetica').fontSize(7.4).fillColor(C.textSec).text(row.key, rx + cardPad, rowY, { width: rw * 0.42 });
+    doc.font('Helvetica-Bold').fontSize(8.3).fillColor(C.primary).text(row.value, rx + rw * 0.36, rowY, {
+      width: rw * 0.64 - cardPad,
+      align: 'right',
+    });
+    rowY += 16;
+  }
+
+  ctx.y = Math.max(ly, cardY + cardH) + 12;
 }
-
-// ═══════════════════════════════════════════════════════════════
-// SECTION — CLIENT CARD (left accent stripe design)
-// ═══════════════════════════════════════════════════════════════
 
 function drawClientCard(ctx: Ctx): void {
-  const { doc, client } = ctx;
-
-  const lines: Array<{ text: string; bold?: boolean }> = [];
-  const cname = s(client.company) || s(client.name) || 'Client';
-  lines.push({ text: cname, bold: true });
-  if (s(client.company) && s(client.name)) lines.push({ text: s(client.name)! });
-  if (s(client.address)) lines.push({ text: s(client.address)! });
-  if (s(client.addressComplement)) lines.push({ text: s(client.addressComplement)! });
-  const ccity = [s(client.postalCode), s(client.city)].join(' ').trim();
-  if (ccity) lines.push({ text: ccity });
-  if (s(client.siret)) lines.push({ text: `SIRET : ${s(client.siret)}` });
-  if (s(client.email)) lines.push({ text: s(client.email)! });
-  if (s(client.phone)) lines.push({ text: `Tél : ${s(client.phone)}` });
-
-  const pad    = 12;
-  const labelH = 16;
-  const lineH  = 11;
-  const cardH  = labelH + lines.length * lineH + pad * 2;
-
-  ensureSpace(ctx, cardH + 12);
-
+  const { doc, company, client } = ctx;
   const x = MG;
-  const y = ctx.y;
+  const w = CW;
+  const split = x + w * 0.67;
+  const pad = 12;
 
-  // Card background
-  rRect(doc, x, y, CW, cardH, 5, P.bg);
-  rRect(doc, x, y, CW, cardH, 5, undefined, P.border, 0.5);
+  const leftLines: string[] = [clientName(client)];
+  if (clean(client.company) && clean(client.name)) leftLines.push(clean(client.name));
+  if (clean(client.address)) leftLines.push(clean(client.address));
+  if (clean(client.addressComplement)) leftLines.push(clean(client.addressComplement));
+  if (clientAddressLine(client)) leftLines.push(clientAddressLine(client));
+  if (clean(client.siret)) leftLines.push(`SIRET ${clean(client.siret)}`);
+  if (clean(client.email)) leftLines.push(clean(client.email));
+  if (clean(client.phone)) leftLines.push(clean(client.phone));
 
-  // Left accent stripe (gold for client — warm, distinct from brand blue)
-  doc.roundedRect(x, y, 3.5, cardH, 2).fill(P.gold);
+  const rightLines: string[] = [];
+  rightLines.push(`Conditions : ${clean(company.paymentTerms) || '30 jours'}`);
+  rightLines.push(`Montant TTC : ${fmtCur(ctx.totals.totalTtc)}`);
+  if (ctx.docType === 'devis' && ctx.extraDate) {
+    rightLines.push(`Valide jusqu'au : ${fmtDate(ctx.extraDate)}`);
+  }
+  if (ctx.docType === 'invoice' && ctx.extraDate) {
+    rightLines.push(`Échéance : ${fmtDate(ctx.extraDate)}`);
+  }
+  if (clean(ctx.devisNumber)) rightLines.push(`Réf. devis : ${clean(ctx.devisNumber)}`);
 
-  // "DESTINATAIRE" label
-  doc.font('Helvetica-Bold').fontSize(6.5).fillColor(P.textMuted);
-  doc.text('DESTINATAIRE', x + pad + 4, y + pad);
+  const leftHeight = 22 + leftLines.length * 10;
+  const rightHeight = 22 + rightLines.length * 10;
+  const h = Math.max(84, 20 + Math.max(leftHeight, rightHeight));
 
-  // Content
-  let ty = y + pad + labelH;
-  for (const line of lines) {
-    if (line.bold) {
-      doc.font('Helvetica-Bold').fontSize(9).fillColor(P.navy);
-    } else {
-      doc.font('Helvetica').fontSize(8).fillColor(P.textSec);
-    }
-    doc.text(line.text, x + pad + 4, ty, { width: CW - pad * 2 - 4 });
-    ty += lineH;
+  ensureSpace(ctx, h + 10);
+
+  doc.roundedRect(x, ctx.y, w, h, 7).fill(C.white);
+  doc.roundedRect(x, ctx.y, w, h, 7).strokeColor(C.border).lineWidth(0.7).stroke();
+  doc
+    .moveTo(split, ctx.y + 8)
+    .lineTo(split, ctx.y + h - 8)
+    .strokeColor(C.border)
+    .lineWidth(0.5)
+    .stroke();
+
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.accent);
+  doc.text('CLIENT', x + pad, ctx.y + pad);
+  doc.text('RÉCAPITULATIF', split + pad, ctx.y + pad);
+
+  let ly = ctx.y + pad + 14;
+  doc.font('Helvetica').fontSize(8).fillColor(C.text);
+  for (const line of leftLines) {
+    doc.text(line, x + pad, ly, { width: split - x - pad * 2 });
+    ly += 10;
   }
 
-  ctx.y = y + cardH + 14;
+  let ry = ctx.y + pad + 14;
+  doc.font('Helvetica').fontSize(7.6).fillColor(C.textSec);
+  for (const line of rightLines) {
+    doc.text(line, split + pad, ry, { width: x + w - split - pad * 2 });
+    ry += 10;
+  }
+
+  ctx.y += h + 12;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SECTION — ITEMS TABLE
-// ═══════════════════════════════════════════════════════════════
-
-function drawTableHeader(ctx: Ctx, layout: ColLayout): void {
-  const { doc } = ctx;
-  const h = 26;
-  const x = MG;
-
-  // Navy header background
-  rRect(doc, x, ctx.y, CW, h, 4, P.navy);
-
-  // Gold right accent on header
-  doc.rect(x + CW - 3, ctx.y, 3, h).fill(P.gold);
-  doc.roundedRect(x + CW - 3, ctx.y, 3, h, 2).fill(P.gold);
-
-  const textY = ctx.y + 8;
-  doc.font('Helvetica-Bold').fontSize(7).fillColor(P.white);
-
-  doc.text('Désignation / Description', layout.desc.x + 10, textY, { width: layout.desc.w - 14 });
-
-  const qtyLabel = 'Qté';
-  const qtyLabelW = tw(doc, qtyLabel, 'Helvetica-Bold', 7);
-  doc.text(qtyLabel, layout.qty.x + (layout.qty.w - qtyLabelW) / 2, textY);
-
-  const puLabel = 'P.U. HT';
-  const puLabelW = tw(doc, puLabel, 'Helvetica-Bold', 7);
-  doc.text(puLabel, layout.pu.x + layout.pu.w - puLabelW - 6, textY);
-
-  if (!ctx.ae && layout.tva) {
-    const tvaLabel = 'TVA';
-    const tvaLabelW = tw(doc, tvaLabel, 'Helvetica-Bold', 7);
-    doc.text(tvaLabel, layout.tva.x + (layout.tva.w - tvaLabelW) / 2, textY);
+function getColWidths(ae: boolean): ColWidths {
+  if (ae) {
+    return {
+      desc: CW * 0.45,
+      qty: CW * 0.11,
+      unit: CW * 0.11,
+      pu: CW * 0.16,
+      total: CW * 0.17,
+    };
   }
 
-  const totLabel = 'Total HT';
-  const totLabelW = tw(doc, totLabel, 'Helvetica-Bold', 7);
-  doc.text(totLabel, layout.total.x + layout.total.w - totLabelW - 6, textY);
+  return {
+    desc: CW * 0.37,
+    qty: CW * 0.1,
+    unit: CW * 0.1,
+    pu: CW * 0.14,
+    tva: CW * 0.09,
+    total: CW * 0.2,
+  };
+}
+
+function drawTableHeader(ctx: Ctx, cols: ColWidths): void {
+  const { doc } = ctx;
+  const x = MG;
+  const h = 24;
+
+  doc.roundedRect(x, ctx.y, CW, h, 4).fill(C.primary);
+
+  doc.font('Helvetica-Bold').fontSize(7.3).fillColor(C.white);
+  let cx = x;
+  doc.text('Description', cx + 6, ctx.y + 8, { width: cols.desc - 12 });
+  cx += cols.desc;
+  doc.text('Qté', cx + 2, ctx.y + 8, { width: cols.qty - 4, align: 'center' });
+  cx += cols.qty;
+  doc.text('Unité', cx + 2, ctx.y + 8, { width: cols.unit - 4, align: 'center' });
+  cx += cols.unit;
+  doc.text('P.U. HT', cx + 2, ctx.y + 8, { width: cols.pu - 4, align: 'right' });
+  cx += cols.pu;
+  if (!ctx.ae && cols.tva) {
+    doc.text('TVA', cx + 2, ctx.y + 8, { width: cols.tva - 4, align: 'center' });
+    cx += cols.tva;
+  }
+  doc.text('Total HT', cx + 2, ctx.y + 8, { width: cols.total - 8, align: 'right' });
 
   ctx.y += h;
 }
 
-function drawTableRow(
-  ctx: Ctx,
-  item: DevisItem | InvoiceItem,
-  layout: ColLayout,
-  idx: number,
-): void {
+function drawTableRow(ctx: Ctx, item: BillingItem, cols: ColWidths, index: number): void {
   const { doc } = ctx;
+  const designation = clean(item.designation);
+  const description = clean(item.description);
+  const rowH = rowHeight(doc, designation, description, cols.desc - 12);
 
-  const desig = s(item.designation);
-  const desc  = s(item.description);
-  const combined = desig + (desig && desc ? '\n' : '') + desc;
-  const rh = rowHeight(doc, combined, layout.desc.w);
+  ensureSpace(ctx, rowH, true);
 
-  ensureSpace(ctx, rh, true);
-
-  const ry = ctx.y;
-
-  // Alternating stripe — very subtle
-  if (idx % 2 === 1) {
-    doc.rect(MG, ry, CW, rh).fill(P.bgStripe);
+  if (index % 2 === 1) {
+    doc.rect(MG, ctx.y, CW, rowH).fill(C.bgStripe);
   }
 
-  // Bottom separator
-  hr(doc, MG, ry + rh - 0.5, CW, P.border, 0.3);
+  doc
+    .moveTo(MG, ctx.y + rowH - 0.5)
+    .lineTo(MG + CW, ctx.y + rowH - 0.5)
+    .strokeColor(C.border)
+    .lineWidth(0.3)
+    .stroke();
+
+  const separators: number[] = [];
+  let currentX = MG + cols.desc;
+  separators.push(currentX);
+  currentX += cols.qty;
+  separators.push(currentX);
+  currentX += cols.unit;
+  separators.push(currentX);
+  currentX += cols.pu;
+  separators.push(currentX);
+  if (!ctx.ae && cols.tva) {
+    currentX += cols.tva;
+    separators.push(currentX);
+  }
+  for (const sepX of separators) {
+    doc
+      .moveTo(sepX, ctx.y)
+      .lineTo(sepX, ctx.y + rowH)
+      .strokeColor(C.border)
+      .lineWidth(0.2)
+      .stroke();
+  }
 
   const pad = 6;
-  const textY = ry + 8;
+  let cx = MG;
 
-  // ── Description column ──
-  const descX = layout.desc.x + pad + 4;
-  const descW = layout.desc.w - pad * 2 - 4;
-
-  if (desig) {
-    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(P.navy);
-    doc.text(desig, descX, textY, { width: descW });
+  doc.font('Helvetica-Bold').fontSize(8.3).fillColor(C.text);
+  doc.text(designation || 'Ligne', cx + pad, ctx.y + 6, { width: cols.desc - pad * 2 });
+  if (description) {
+    const titleHeight = measureText(doc, designation || ' ', cols.desc - pad * 2, 'Helvetica-Bold', 8.3);
+    doc.font('Helvetica').fontSize(7.2).fillColor(C.textSec);
+    doc.text(description, cx + pad, ctx.y + 7 + titleHeight, { width: cols.desc - pad * 2 });
   }
-  if (desc) {
-    const desigH = desig
-      ? (doc.font('Helvetica-Bold').fontSize(8.5), doc.heightOfString(desig, { width: descW }) + 3)
-      : 0;
-    doc.font('Helvetica').fontSize(7.5).fillColor(P.textMuted);
-    doc.text(desc, descX, textY + desigH, { width: descW });
-  }
+  cx += cols.desc;
 
-  // ── Qty — centered ──
-  const qtyStr = String(item.quantity ?? 0);
-  const qtyW   = tw(doc, qtyStr, 'Helvetica', 8.5);
-  doc.font('Helvetica').fontSize(8.5).fillColor(P.textSec);
-  doc.text(qtyStr, layout.qty.x + (layout.qty.w - qtyW) / 2, textY);
+  doc.font('Helvetica').fontSize(8).fillColor(C.text);
+  doc.text(fmtQty(toNum(item.quantity)), cx + 3, ctx.y + 6, { width: cols.qty - 6, align: 'center' });
+  cx += cols.qty;
 
-  // ── P.U. — right aligned ──
-  const puStr = fmtCur(Number(item.unitPrice ?? 0));
-  const puW   = tw(doc, puStr, 'Helvetica', 8.5);
-  doc.font('Helvetica').fontSize(8.5).fillColor(P.textSec);
-  doc.text(puStr, layout.pu.x + layout.pu.w - puW - pad, textY);
+  doc.text(clean(item.unit) || 'unité', cx + 3, ctx.y + 6, { width: cols.unit - 6, align: 'center' });
+  cx += cols.unit;
 
-  // ── TVA — centered ──
-  if (!ctx.ae && layout.tva) {
-    const tvaStr = `${item.tvaRate ?? 0} %`;
-    const tvaW   = tw(doc, tvaStr, 'Helvetica', 8);
-    doc.font('Helvetica').fontSize(8).fillColor(P.textMuted);
-    doc.text(tvaStr, layout.tva.x + (layout.tva.w - tvaW) / 2, textY);
+  doc.text(fmtCur(toNum(item.unitPrice)), cx + 3, ctx.y + 6, { width: cols.pu - 6, align: 'right' });
+  cx += cols.pu;
+
+  if (!ctx.ae && cols.tva) {
+    doc.text(`${fmtPercent(toNum(item.tvaRate))}%`, cx + 3, ctx.y + 6, { width: cols.tva - 6, align: 'center' });
+    cx += cols.tva;
   }
 
-  // ── Total HT — right aligned, bold, navy ──
-  const lineTotal = Number(item.quantity ?? 0) * Number(item.unitPrice ?? 0);
-  const totalStr  = fmtCur(lineTotal);
-  const totalW    = tw(doc, totalStr, 'Helvetica-Bold', 9);
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(P.navy);
-  doc.text(totalStr, layout.total.x + layout.total.w - totalW - pad, textY);
+  const lineTotal = toNum(item.quantity) * toNum(item.unitPrice);
+  doc.font('Helvetica-Bold').fontSize(8.3).fillColor(C.text);
+  doc.text(fmtCur(lineTotal), cx + 3, ctx.y + 6, { width: cols.total - 6, align: 'right' });
 
-  ctx.y += rh;
+  ctx.y += rowH;
 }
 
 function drawItemsTable(ctx: Ctx): void {
-  const layout = getColLayout(ctx.ae);
+  const cols = getColWidths(ctx.ae);
 
-  ensureSpace(ctx, 40);
+  ensureSpace(ctx, 32);
+  drawTableHeader(ctx, cols);
 
-  // Section label above table
-  doc_sectionLabel(ctx, 'PRESTATIONS & ARTICLES');
-
-  drawTableHeader(ctx, layout);
-
-  for (let i = 0; i < ctx.items.length; i++) {
-    drawTableRow(ctx, ctx.items[i], layout, i);
+  if (ctx.items.length === 0) {
+    const emptyH = 32;
+    ensureSpace(ctx, emptyH, true);
+    ctx.doc.rect(MG, ctx.y, CW, emptyH).fill(C.bgLight);
+    ctx.doc.font('Helvetica-Oblique').fontSize(8).fillColor(C.textMuted);
+    ctx.doc.text('Aucune ligne de facturation', MG + 8, ctx.y + 11, { width: CW - 16, align: 'center' });
+    ctx.y += emptyH;
+    ctx.y += 8;
+    return;
   }
 
-  // Close table with a bottom border accent
-  hr(ctx.doc, MG, ctx.y, CW, P.brand, 1.2);
-  ctx.y += 12;
+  for (let i = 0; i < ctx.items.length; i += 1) {
+    drawTableRow(ctx, ctx.items[i], cols, i);
+  }
+
+  ctx.y += 10;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SHARED — Section label helper
-// ═══════════════════════════════════════════════════════════════
-
-function doc_sectionLabel(ctx: Ctx, label: string): void {
-  ctx.doc.font('Helvetica-Bold').fontSize(6.5).fillColor(P.textHint);
-  ctx.doc.text(label, MG, ctx.y, { width: CW, characterSpacing: 0.8 });
-  ctx.y += 11;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// SECTION — TOTALS (premium hierarchy)
-// ═══════════════════════════════════════════════════════════════
-
-function drawTotals(ctx: Ctx): void {
-  const { doc } = ctx;
-
-  // ── Compute amounts ──
-  const totalHT = ctx.items.reduce((a, i) => a + (i.quantity ?? 0) * (i.unitPrice ?? 0), 0);
-  const discount = ctx.globalDiscount > 0 ? totalHT * (ctx.globalDiscount / 100) : 0;
-  const netHT    = totalHT - discount;
-
-  const tvaMap = new Map<number, number>();
-  if (!ctx.ae) {
-    ctx.items.forEach((i) => {
-      const lineHT    = (i.quantity ?? 0) * (i.unitPrice ?? 0);
-      const ratio     = totalHT > 0 ? netHT / totalHT : 1;
-      const tvaAmt    = lineHT * ratio * ((i.tvaRate ?? 0) / 100);
-      tvaMap.set(i.tvaRate ?? 0, (tvaMap.get(i.tvaRate ?? 0) ?? 0) + tvaAmt);
+function drawNotesBlock(ctx: Ctx): void {
+  const notes: Array<{ title: string; body: string }> = [];
+  if (clean(ctx.documentNotes)) {
+    notes.push({
+      title: ctx.docType === 'devis' ? 'Notes du devis' : 'Notes de facture',
+      body: clean(ctx.documentNotes),
     });
   }
-  const totalTVA = Array.from(tvaMap.values()).reduce((a, v) => a + v, 0);
-  const totalTTC = netHT + totalTVA;
+  if (clean(ctx.company.customNotes)) {
+    notes.push({
+      title: "Informations complémentaires de l'entreprise",
+      body: clean(ctx.company.customNotes),
+    });
+  }
+  if (notes.length === 0) return;
 
-  // ── Layout ──
-  const totW  = CW * 0.44;
-  const lblW  = totW * 0.56;
-  const valW  = totW * 0.44;
-  const sx    = MG + CW - totW;
-
-  ensureSpace(ctx, 160);
-
-  // Notes area (if any) — LEFT of totals zone
-  if (s(ctx.company.customNotes)) {
-    const notesW = CW - totW - 20;
-    doc.font('Helvetica-Oblique').fontSize(7.5).fillColor(P.textMuted);
-    doc.text(s(ctx.company.customNotes)!, MG, ctx.y + 4, { width: notesW });
+  const pad = 12;
+  const width = CW - pad * 2;
+  let h = 20;
+  for (const block of notes) {
+    h += measureText(ctx.doc, block.title, width, 'Helvetica-Bold', 7.6);
+    h += 2;
+    h += measureText(ctx.doc, block.body, width, 'Helvetica', 7.3);
+    h += 8;
   }
 
-  // Top separator
-  hr(doc, sx - 2, ctx.y, totW + 2, P.border, 0.5);
-  ctx.y += 12;
+  ensureSpace(ctx, h + 10);
 
-  // Utility: draw a summary row
-  const summaryRow = (
-    label: string,
-    value: string,
-    opts: { bold?: boolean; accent?: boolean; muted?: boolean } = {},
-  ): void => {
-    const lblFont = opts.bold ? 'Helvetica-Bold' : 'Helvetica';
-    const valFont = opts.bold ? 'Helvetica-Bold' : 'Helvetica';
-    const lblColor = opts.accent ? P.brand : opts.muted ? P.textMuted : P.textSec;
-    const valColor = opts.accent ? P.brand : opts.bold ? P.navy : P.text;
+  ctx.doc.roundedRect(MG, ctx.y, CW, h, 6).fill(C.bgLight);
+  ctx.doc.roundedRect(MG, ctx.y, CW, h, 6).strokeColor(C.border).lineWidth(0.6).stroke();
 
-    doc.font(lblFont).fontSize(8.5).fillColor(lblColor);
-    doc.text(label, sx, ctx.y, { width: lblW, align: 'right' });
-    doc.font(valFont).fontSize(8.5).fillColor(valColor);
-    doc.text(value, sx + lblW, ctx.y, { width: valW, align: 'right' });
-    ctx.y += 16;
-  };
+  let y = ctx.y + 10;
+  for (const block of notes) {
+    ctx.doc.font('Helvetica-Bold').fontSize(7.6).fillColor(C.primary);
+    ctx.doc.text(block.title, MG + pad, y, { width });
+    y += measureText(ctx.doc, block.title, width, 'Helvetica-Bold', 7.6) + 2;
 
-  // Total HT
-  summaryRow('Total HT', fmtCur(totalHT));
-
-  // Discount
-  if (discount > 0) {
-    summaryRow(`Remise (${ctx.globalDiscount} %)`, `− ${fmtCur(discount)}`, { accent: true });
-    summaryRow('Net HT', fmtCur(netHT), { bold: true });
+    ctx.doc.font('Helvetica').fontSize(7.3).fillColor(C.textSec);
+    ctx.doc.text(block.body, MG + pad, y, { width });
+    y += measureText(ctx.doc, block.body, width, 'Helvetica', 7.3) + 8;
   }
 
-  // TVA lines
-  if (!ctx.ae) {
-    const sortedRates = Array.from(tvaMap.keys()).sort((a, b) => a - b);
-    for (const rate of sortedRates) {
-      summaryRow(`TVA ${rate} %`, fmtCur(tvaMap.get(rate)!), { muted: true });
-    }
-  } else {
-    doc.font('Helvetica-Oblique').fontSize(6.5).fillColor(P.textHint);
-    doc.text('TVA non applicable — art. 293 B du CGI', sx, ctx.y, { width: totW, align: 'right' });
-    ctx.y += 12;
-  }
-
-  // ── Grand total box (gold premium) ──
-  ctx.y += 6;
-  hr(doc, sx - 2, ctx.y, totW + 2, P.navyLight, 1);
-  ctx.y += 8;
-
-  const ttcH = 36;
-  rRect(doc, sx - 8, ctx.y - 6, totW + 16, ttcH, 6, P.navy);
-  // Gold left accent inside box
-  doc.roundedRect(sx - 8, ctx.y - 6, 4, ttcH, 2).fill(P.gold);
-
-  // "TOTAL TTC" label
-  doc.font('Helvetica-Bold').fontSize(8).fillColor(P.gold);
-  doc.text('TOTAL TTC', sx, ctx.y + 3, { width: lblW, align: 'right' });
-
-  // Amount — large, white
-  doc.font('Helvetica-Bold').fontSize(18).fillColor(P.white);
-  doc.text(fmtCur(totalTTC), sx + lblW, ctx.y - 1, { width: valW, align: 'right' });
-
-  ctx.y += ttcH + 10;
+  ctx.y += h + 12;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SECTION — IBAN BLOCK (premium bank card look)
-// ═══════════════════════════════════════════════════════════════
+function drawTotals(ctx: Ctx): void {
+  const { doc, totals } = ctx;
+  const rows: Array<{ label: string; value: string }> = [
+    { label: 'Total HT brut', value: fmtCur(totals.grossHt) },
+  ];
+
+  if (totals.discountAmount > 0) {
+    rows.push({
+      label: `Remise (${fmtPercent(totals.discountRate)}%)`,
+      value: `- ${fmtCur(totals.discountAmount)}`,
+    });
+  }
+
+  rows.push({ label: 'Total HT net', value: fmtCur(totals.netHt) });
+
+  if (!ctx.ae) {
+    for (const vat of totals.vatByRate) {
+      rows.push({ label: `TVA ${fmtPercent(vat.rate)}%`, value: fmtCur(vat.amount) });
+    }
+    rows.push({ label: 'Total TVA', value: fmtCur(totals.totalVat) });
+  } else {
+    rows.push({ label: 'TVA', value: 'Non applicable (art. 293 B CGI)' });
+  }
+
+  const boxW = CW * 0.46;
+  const x = MG + CW - boxW;
+  const rowH = 15;
+  const h = 20 + rows.length * rowH + 38;
+
+  ensureSpace(ctx, h + 10);
+
+  doc.roundedRect(x, ctx.y, boxW, h, 8).fill(C.white);
+  doc.roundedRect(x, ctx.y, boxW, h, 8).strokeColor(C.border).lineWidth(0.8).stroke();
+
+  let y = ctx.y + 12;
+  doc.font('Helvetica-Bold').fontSize(8.3).fillColor(C.primary);
+  doc.text('RÉCAPITULATIF FINANCIER', x + 10, y, { width: boxW - 20 });
+  y += 14;
+
+  for (const row of rows) {
+    doc.font('Helvetica').fontSize(8).fillColor(C.textSec).text(row.label, x + 10, y, { width: boxW * 0.55 });
+    doc.font('Helvetica').fontSize(8).fillColor(C.text).text(row.value, x + boxW * 0.45, y, {
+      width: boxW * 0.55 - 12,
+      align: 'right',
+    });
+    y += rowH;
+  }
+
+  doc
+    .moveTo(x + 10, y + 2)
+    .lineTo(x + boxW - 10, y + 2)
+    .strokeColor(C.accentBorder)
+    .lineWidth(0.8)
+    .stroke();
+  y += 8;
+
+  doc.roundedRect(x + 10, y, boxW - 20, 26, 6).fill(C.accentSoft);
+  doc.roundedRect(x + 10, y, boxW - 20, 26, 6).strokeColor(C.accentBorder).lineWidth(0.7).stroke();
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(C.accent);
+  doc.text('TOTAL TTC', x + 16, y + 7, { width: boxW * 0.45 });
+  doc.font('Helvetica-Bold').fontSize(14).fillColor(C.primary);
+  doc.text(fmtCur(totals.totalTtc), x + boxW * 0.45, y + 5, {
+    width: boxW * 0.55 - 16,
+    align: 'right',
+  });
+
+  ctx.y += h + 12;
+}
 
 function drawIbanBlock(ctx: Ctx): void {
   const { doc, company } = ctx;
-  if (!s(company.iban)) return;
+  if (!clean(company.iban)) return;
 
-  ensureSpace(ctx, 100);
+  const h = 76;
+  ensureSpace(ctx, h + 10);
 
-  const x  = MG;
-  const w  = CW;
-  const h  = 78;
-  const y  = ctx.y;
-  const pad = 16;
+  doc.roundedRect(MG, ctx.y, CW, h, 6).fill(C.accentSoft);
+  doc.roundedRect(MG, ctx.y, CW, h, 6).strokeColor(C.accentBorder).lineWidth(0.9).stroke();
 
-  // Dark navy card
-  rRect(doc, x, y, w, h, 8, P.navy);
-  // Subtle gold top stripe
-  doc.roundedRect(x, y, w, 3, 4).fill(P.gold);
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(C.accent);
+  doc.text('RÈGLEMENT PAR VIREMENT BANCAIRE', MG + 14, ctx.y + 10, { width: CW - 28 });
 
-  // Heading
-  doc.font('Helvetica-Bold').fontSize(8).fillColor(P.gold);
-  doc.text('COORDONNÉES BANCAIRES — VIREMENT', x + pad, y + 16, { width: w - pad * 2 });
+  doc.font('Courier').fontSize(9.2).fillColor(C.primary);
+  doc.text(fmtIban(clean(company.iban)), MG + 14, ctx.y + 28, { width: CW - 28 });
 
-  // IBAN — monospace, white, prominent
-  doc.font('Courier-Bold').fontSize(11).fillColor(P.white);
-  doc.text(fmtIban(s(company.iban)!), x + pad, y + 32, { width: w - pad * 2 });
-
-  // BIC + bank + holder — hint color
-  doc.font('Helvetica').fontSize(7.5).fillColor(P.textHint);
-  const parts: string[] = [];
-  if (s(company.bic))           parts.push(`BIC : ${s(company.bic)}`);
-  if (s(company.bankName))      parts.push(s(company.bankName)!);
-  if (s(company.accountHolder)) parts.push(`Titulaire : ${s(company.accountHolder)}`);
-  if (parts.length) {
-    doc.text(parts.join('   ·   '), x + pad, y + 52, { width: w - pad * 2 });
+  const bankParts = [clean(company.bic) ? `BIC : ${clean(company.bic)}` : '', clean(company.bankName)]
+    .filter(Boolean)
+    .join(' | ');
+  if (bankParts) {
+    doc.font('Helvetica').fontSize(7.8).fillColor(C.textSec);
+    doc.text(bankParts, MG + 14, ctx.y + 44, { width: CW - 28 });
   }
 
-  ctx.y += h + 16;
-}
+  if (clean(company.accountHolder)) {
+    doc.font('Helvetica').fontSize(7.8).fillColor(C.textSec);
+    doc.text(`Titulaire : ${clean(company.accountHolder)}`, MG + 14, ctx.y + 56, { width: CW - 28 });
+  }
 
-// ═══════════════════════════════════════════════════════════════
-// SECTION — CONDITIONS DE PAIEMENT
-// ═══════════════════════════════════════════════════════════════
+  ctx.y += h + 12;
+}
 
 function drawConditions(ctx: Ctx): void {
   const { doc, company } = ctx;
-  const isDevis = ctx.docType === 'devis';
-  const terms   = s(company.paymentTerms) || '30 jours';
+  const terms = clean(company.paymentTerms) || '30 jours';
+  const earlyDiscount = toNum(company.earlyDiscount);
+  const earlyDiscountDays = Math.round(toNum(company.earlyDiscountDays));
+  const latePenaltyRate = toNum(company.latePenaltyRate) > 0 ? toNum(company.latePenaltyRate) : 3;
 
-  ensureSpace(ctx, 100);
-
-  doc_sectionLabel(ctx, isDevis ? 'CONDITIONS DU DEVIS' : 'CONDITIONS DE PAIEMENT');
-
-  // Left-accent container
-  const x   = MG;
-  const padX = 12;
-  const padY = 10;
-
-  // Collect condition lines first to size box
-  const condLines: Array<{ text: string; italic?: boolean }> = [];
-
-  if (isDevis) {
-    condLines.push({ text: `Ce devis est valable 30 jours à compter de sa date d'émission.` });
-    condLines.push({ text: `Paiement à ${terms} de la réception de la facture.` });
-    if (s(company.earlyDiscount) && s(company.earlyDiscountDays)) {
-      condLines.push({
-        text: `Escompte de ${company.earlyDiscount} % accordé pour paiement sous ${company.earlyDiscountDays} jours.`,
-      });
+  const lines: string[] = [];
+  if (ctx.docType === 'devis') {
+    if (ctx.extraDate) {
+      lines.push(`Validité du devis : offre valable jusqu'au ${fmtDate(ctx.extraDate)}.`);
     }
+    lines.push(`Règlement : paiement à ${terms} à réception de facture.`);
+    if (earlyDiscount > 0 && earlyDiscountDays > 0) {
+      lines.push(`Escompte : ${fmtPercent(earlyDiscount)}% accordé pour paiement sous ${earlyDiscountDays} jours.`);
+    } else {
+      lines.push('Escompte : néant pour paiement anticipé.');
+    }
+    lines.push("L'acceptation du devis se fait par signature précédée de la mention « Bon pour accord ».");
   } else {
-    condLines.push({ text: `Paiement à ${terms} de la réception de la facture.` });
-    const rate = company.latePenaltyRate ?? 3;
-    if (ctx.ae) {
-      condLines.push({
-        text: `En cas de retard, indemnité forfaitaire pour frais de recouvrement de 40 € (art. D441-5 du Code de Commerce).`,
-        italic: true,
-      });
+    lines.push(`Conditions de règlement : paiement à ${terms} à compter de la date d'émission.`);
+    if (earlyDiscount > 0 && earlyDiscountDays > 0) {
+      lines.push(`Escompte : ${fmtPercent(earlyDiscount)}% accordé pour paiement sous ${earlyDiscountDays} jours.`);
     } else {
-      condLines.push({
-        text: `En cas de retard, pénalité de ${rate} % + indemnité forfaitaire de 40 € (art. D441-5 du Code de Commerce).`,
-        italic: true,
-      });
+      lines.push('Escompte pour paiement anticipé : néant.');
     }
-    if (s(company.earlyDiscount) && s(company.earlyDiscountDays)) {
-      condLines.push({
-        text: `Escompte de ${company.earlyDiscount} % accordé pour paiement sous ${company.earlyDiscountDays} jours.`,
-      });
-    }
+    lines.push(`Pénalités de retard exigibles au taux annuel de ${fmtPercent(latePenaltyRate)}%.`);
+    lines.push('Indemnité forfaitaire pour frais de recouvrement : 40 € (article D441-5 du Code de commerce).');
   }
 
-  const lineH = 11;
-  const boxH  = padY * 2 + condLines.length * lineH;
-
-  rRect(doc, x, ctx.y, CW, boxH, 4, P.bg);
-  rRect(doc, x, ctx.y, CW, boxH, 4, undefined, P.border, 0.4);
-  doc.roundedRect(x, ctx.y, 3, boxH, 2).fill(P.brand);
-
-  let cy = ctx.y + padY;
-  for (const line of condLines) {
-    if (line.italic) {
-      doc.font('Helvetica-Oblique').fontSize(7.5).fillColor(P.textMuted);
-    } else {
-      doc.font('Helvetica').fontSize(7.5).fillColor(P.textSec);
-    }
-    doc.text(line.text, x + padX + 4, cy, { width: CW - padX * 2 - 4 });
-    cy += lineH;
+  if (ctx.ae) {
+    lines.push('TVA non applicable, article 293 B du CGI.');
   }
 
-  ctx.y += boxH + 14;
+  const pad = 12;
+  const textWidth = CW - pad * 2;
+  let h = 26;
+  for (const line of lines) {
+    h += measureText(doc, `- ${line}`, textWidth, 'Helvetica', 7.4) + 3;
+  }
+
+  ensureSpace(ctx, h + 10);
+
+  doc.roundedRect(MG, ctx.y, CW, h, 6).fill(C.bgLight);
+  doc.roundedRect(MG, ctx.y, CW, h, 6).strokeColor(C.border).lineWidth(0.6).stroke();
+  doc.font('Helvetica-Bold').fontSize(8.2).fillColor(C.primary);
+  doc.text(
+    ctx.docType === 'devis' ? 'CONDITIONS COMMERCIALES' : 'CONDITIONS DE PAIEMENT ET MENTIONS LÉGALES',
+    MG + pad,
+    ctx.y + 10,
+    { width: textWidth },
+  );
+
+  let y = ctx.y + 24;
+  doc.font('Helvetica').fontSize(7.4).fillColor(C.textSec);
+  for (const line of lines) {
+    doc.text(`- ${line}`, MG + pad, y, { width: textWidth });
+    y += measureText(doc, `- ${line}`, textWidth, 'Helvetica', 7.4) + 3;
+  }
+
+  ctx.y += h + 12;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SECTION — SIGNATURE (devis only)
-// ═══════════════════════════════════════════════════════════════
+function drawSellerLegalCard(ctx: Ctx): void {
+  const { doc, company } = ctx;
+  const lines: string[] = [];
+
+  if (clean(company.legalForm)) lines.push(`Forme juridique : ${clean(company.legalForm)}`);
+  const address = [clean(company.address), clean(company.addressComplement), companyAddressLine(company)]
+    .filter(Boolean)
+    .join(', ');
+  if (address) lines.push(`Siège social : ${address}`);
+  if (clean(company.siret)) lines.push(`SIRET : ${clean(company.siret)}`);
+  if (clean(company.rcsNumber)) lines.push(`RCS : ${clean(company.rcsNumber)}`);
+  if (ctx.ae) {
+    lines.push('TVA : non applicable, article 293 B du CGI');
+  } else if (clean(company.tvaNumber)) {
+    lines.push(`TVA intracommunautaire : ${clean(company.tvaNumber)}`);
+  }
+  if (clean(company.socialCapital)) lines.push(`Capital social : ${clean(company.socialCapital)}`);
+  if (clean(company.directorName)) {
+    const title = clean(company.directorTitle);
+    lines.push(`Responsable : ${clean(company.directorName)}${title ? ` (${title})` : ''}`);
+  }
+
+  if (lines.length === 0) return;
+
+  const pad = 12;
+  const textWidth = CW - pad * 2;
+  let h = 24;
+  for (const line of lines) {
+    h += measureText(doc, line, textWidth, 'Helvetica', 7.2) + 2;
+  }
+
+  ensureSpace(ctx, h + 10);
+
+  doc.roundedRect(MG, ctx.y, CW, h, 6).fill(C.white);
+  doc.roundedRect(MG, ctx.y, CW, h, 6).strokeColor(C.border).lineWidth(0.6).stroke();
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(C.primary);
+  doc.text('IDENTITÉ LÉGALE DU VENDEUR', MG + pad, ctx.y + 10, { width: textWidth });
+
+  let y = ctx.y + 22;
+  doc.font('Helvetica').fontSize(7.2).fillColor(C.textSec);
+  for (const line of lines) {
+    doc.text(line, MG + pad, y, { width: textWidth });
+    y += measureText(doc, line, textWidth, 'Helvetica', 7.2) + 2;
+  }
+
+  ctx.y += h + 12;
+}
 
 function drawSignature(ctx: Ctx): void {
   if (ctx.docType !== 'devis') return;
 
   const { doc } = ctx;
-  ensureSpace(ctx, 110);
+  const h = 84;
+  ensureSpace(ctx, h + 10);
 
-  doc_sectionLabel(ctx, 'BON POUR ACCORD');
-
-  const x  = MG;
-  const w  = CW;
-  const h  = 88;
-  const y  = ctx.y;
-  const pad = 16;
-
-  // Outer container — dashed premium border
-  doc.roundedRect(x, y, w, h, 6)
-    .dash(4, { space: 3 })
-    .strokeColor(P.brandBorder)
-    .lineWidth(1)
+  doc
+    .roundedRect(MG, ctx.y, CW, h, 6)
+    .dash(3, { space: 3 })
+    .strokeColor(C.textMuted)
+    .lineWidth(0.8)
     .stroke();
   doc.undash();
 
-  // Subtle brand tint inside
-  rRect(doc, x, y, w, h, 6, P.brandSoft);
-  // Redraw dashed on top (fill clears stroke)
-  doc.roundedRect(x, y, w, h, 6)
-    .dash(4, { space: 3 })
-    .strokeColor(P.brandBorder)
-    .lineWidth(1)
-    .stroke();
-  doc.undash();
+  doc.font('Helvetica-Bold').fontSize(8.8).fillColor(C.primary);
+  doc.text('BON POUR ACCORD', MG + 14, ctx.y + 10, { width: CW - 28 });
 
-  // Instruction text
-  doc.font('Helvetica-Oblique').fontSize(7.5).fillColor(P.textSec);
+  doc.font('Helvetica-Oblique').fontSize(7.1).fillColor(C.textSec);
   doc.text(
-    'Je soussigné(e) reconnais avoir pris connaissance des présentes conditions et accepte le contenu de ce devis.',
-    x + pad, y + pad + 4, { width: w - pad * 2 },
+    "Je soussigné(e), confirme avoir pris connaissance des conditions ci-dessus et accepte le présent devis.",
+    MG + 14,
+    ctx.y + 24,
+    { width: CW - 28 },
   );
 
-  // Lines for date and signature
-  const lineY = y + h - 24;
+  const lineY = ctx.y + 56;
+  doc.font('Helvetica').fontSize(7).fillColor(C.textMuted);
+  doc.text('Date', MG + 14, lineY - 8);
+  doc
+    .moveTo(MG + 14, lineY + 2)
+    .lineTo(MG + CW * 0.34, lineY + 2)
+    .strokeColor(C.textMuted)
+    .lineWidth(0.5)
+    .stroke();
 
-  const lineCol = P.borderMid;
+  doc.text('Signature et cachet', MG + CW * 0.56, lineY - 8);
+  doc
+    .moveTo(MG + CW * 0.56, lineY + 2)
+    .lineTo(MG + CW - 14, lineY + 2)
+    .strokeColor(C.textMuted)
+    .lineWidth(0.5)
+    .stroke();
 
-  // Date
-  doc.font('Helvetica').fontSize(7).fillColor(P.textMuted);
-  doc.text('Date', x + pad, lineY - 10);
-  hr(doc, x + pad, lineY, w * 0.30, lineCol, 0.6);
-
-  // Lieu
-  doc.text('Lieu', x + w * 0.36, lineY - 10);
-  hr(doc, x + w * 0.36, lineY, w * 0.20, lineCol, 0.6);
-
-  // Signature
-  doc.text('Signature et cachet', x + w * 0.62, lineY - 10);
-  hr(doc, x + w * 0.62, lineY, w * 0.34 - pad, lineCol, 0.6);
-
-  ctx.y += h + 16;
+  ctx.y += h + 12;
 }
-
-// ═══════════════════════════════════════════════════════════════
-// MAIN BUILDER
-// ═══════════════════════════════════════════════════════════════
 
 function buildDocument(
   company: CompanyInfo,
   client: Client,
-  items: (DevisItem | InvoiceItem)[],
+  items: BillingItem[],
   globalDiscount: number,
-  docType: 'devis' | 'invoice',
+  docType: DocType,
   docNumber: string,
   issueDate: Date,
   extraDate?: Date,
   devisNumber?: string | null,
+  documentNotes?: string | null,
 ): Promise<Buffer> {
-  const doc = new PDFDocument({ size: 'A4', margin: 0, autoFirstPage: false });
+  const doc = new PDFDocument({
+    size: 'A4',
+    margin: 0,
+    autoFirstPage: false,
+    pdfVersion: '1.7',
+  });
 
   return new Promise((resolve, reject) => {
     const buffers: Buffer[] = [];
@@ -975,50 +919,53 @@ function buildDocument(
     try {
       doc.addPage();
 
+      const ae = isAE(company.legalForm);
+      const totals = computeTotals(items, globalDiscount, ae);
+
       const ctx: Ctx = {
         doc,
-        y: HEADER_BAND + 6,
+        y: MG,
         pageNum: 1,
         company,
         client,
-        ae: isAE(company.legalForm),
+        ae,
         docType,
         docNumber,
         issueDate,
         extraDate,
         devisNumber,
         items,
-        globalDiscount: globalDiscount || 0,
+        globalDiscount,
+        documentNotes,
+        totals,
       };
 
-      // Page 1 structure
       drawAccentBar(ctx);
       drawHeader(ctx);
-      hr(ctx.doc, MG, ctx.y, CW, P.border, 0.4);
-      ctx.y += 14;
+
+      ctx.y += 2;
+      doc.moveTo(MG, ctx.y).lineTo(MG + CW, ctx.y).strokeColor(C.border).lineWidth(0.5).stroke();
+      ctx.y += 12;
+
       drawClientCard(ctx);
       drawItemsTable(ctx);
+      drawNotesBlock(ctx);
       drawTotals(ctx);
-      ctx.y += 8;
       drawIbanBlock(ctx);
       drawConditions(ctx);
+      drawSellerLegalCard(ctx);
       drawSignature(ctx);
 
-      // Footer on last page
       drawFooter(ctx);
 
       doc.flushPages();
       doc.end();
-    } catch (err) {
+    } catch (error) {
       doc.destroy();
-      reject(err);
+      reject(error);
     }
   });
 }
-
-// ═══════════════════════════════════════════════════════════════
-// PUBLIC API
-// ═══════════════════════════════════════════════════════════════
 
 export async function generateDevisPDF(
   devis: Devis & { client: Client; items: DevisItem[] },
@@ -1033,6 +980,8 @@ export async function generateDevisPDF(
     devis.number,
     new Date(devis.issueDate),
     new Date(devis.validUntil),
+    undefined,
+    devis.notes,
   );
 }
 
@@ -1050,5 +999,6 @@ export async function generateInvoicePDF(
     new Date(invoice.issueDate),
     new Date(invoice.dueDate),
     invoice.devis?.number,
+    invoice.notes,
   );
 }
