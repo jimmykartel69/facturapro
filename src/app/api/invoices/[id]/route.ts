@@ -354,13 +354,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Facture non trouvée' }, { status: 404 });
     }
 
-    if (existing.status === 'paid') {
-      return NextResponse.json(
-        { error: 'Cette facture a déjà été payée et ne peut pas être supprimée' },
-        { status: 400 }
-      );
-    }
-
     await db.$transaction(async (tx) => {
       await tx.invoice.delete({ where: { id: existing.id } });
 
