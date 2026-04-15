@@ -44,7 +44,8 @@ export default function LoginPage() {
         description: 'Connexion réussie.',
       });
 
-      router.push('/');
+      router.replace('/');
+      router.refresh();
     } catch {
       setError('Une erreur réseau est survenue. Veuillez réessayer.');
       toast({

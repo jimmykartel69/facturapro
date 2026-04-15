@@ -22,23 +22,6 @@ function isPublicApi(pathname: string): boolean {
   return PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-async function hasValidSession(request: NextRequest): Promise<boolean> {
-  try {
-    const res = await fetch(new URL('/api/auth/session', request.url), {
-      headers: {
-        cookie: request.headers.get('cookie') ?? '',
-      },
-      cache: 'no-store',
-    });
-
-    if (!res.ok) return false;
-    const data = (await res.json()) as { user?: unknown };
-    return !!data.user;
-  } catch {
-    return false;
-  }
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('facturapro_session')?.value;
@@ -60,19 +43,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Auth pages: if user has a cookie, redirect to app
+  // Auth pages: if user has a cookie, redirect to app.
+  // We intentionally avoid internal fetch validation here because
+  // self-fetch from middleware can be unreliable on some edge/proxy setups.
   if (isAuthPage(pathname)) {
-    if (sessionCookie && (await hasValidSession(request))) {
+    if (sessionCookie) {
       return NextResponse.redirect(new URL('/', request.url));
     }
     return NextResponse.next();
   }
 
-  // Protected pages: require a fully valid server-side session
+  // Protected pages: require session cookie.
+  // Full validity is checked by API routes + client `fetchSession`.
   if (!sessionCookie) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-  if (!(await hasValidSession(request))) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 

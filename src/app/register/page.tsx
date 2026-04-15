@@ -93,7 +93,8 @@ export default function RegisterPage() {
         description: 'Votre compte a été créé avec succès.',
       });
 
-      router.push('/');
+      router.replace('/');
+      router.refresh();
     } catch {
       const message = 'Une erreur réseau est survenue. Veuillez réessayer.';
       setErrors({ form: message });

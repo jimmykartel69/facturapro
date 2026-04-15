@@ -112,7 +112,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   fetchSession: async () => {
     set({ authLoading: true });
     try {
-      const res = await fetch('/api/auth/session');
+      const res = await fetch('/api/auth/session', {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+      });
       const data = await res.json();
       if (data.user) {
         set({
@@ -133,6 +137,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
@@ -149,6 +154,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ name, firstName, email, password }),
       });
       const data = await res.json();
@@ -162,7 +168,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   logout: async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch {
       // ignore
     }
