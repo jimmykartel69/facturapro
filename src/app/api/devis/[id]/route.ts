@@ -112,13 +112,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Devis non trouvé' }, { status: 404 });
     }
 
-    if (existing.status === 'converted') {
-      return NextResponse.json(
-        { error: 'Ce devis a déjà été converti en facture et ne peut pas être supprimé' },
-        { status: 400 }
-      );
-    }
-
     await db.devis.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
