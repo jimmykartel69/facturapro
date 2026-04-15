@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String
+  firstName       String   @default("")
+  passwordHash    String
+  emailVerified   Boolean  @default(false)
+  resetToken      String?
+  resetTokenExpiry DateTime?
+  sessionToken     String?
+  sessionExpiry    DateTime?
+
+  companyName      String?
+  legalForm        String?
+  siret            String?
+  tvaNumber        String?
+  rcsNumber        String?
+  socialCapital    String?
+  address          String?
+  addressComplement String?
+  postalCode       String?
+  city             String?
+  phone            String?
+  professionalEmail String?
+  website          String?
+  directorName     String?
+  directorTitle    String?
+  logoBase64       String?
+  logoMimeType     String?
+  accentColor      String   @default("#1a1a2e")
+  customNotes      String   @default("")
+  paymentTerms     String   @default("30 jours")
+  latePenaltyRate  Float    @default(3.0)
+  earlyDiscount    Float?
+  earlyDiscountDays Int?
+  devisPrefix      String   @default("DEV-")
+  invoicePrefix    String   @default("FAC-")
+  nextDevisNumber  Int      @default(1)
+  nextInvoiceNumber Int     @default(1)
+  iban             String?
+  bic              String?
+  bankName         String?
+  accountHolder    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clients   Client[]
+  devis     Devis[]
+  invoices  Invoice[]
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  company   String?
+  email     String
+  phone     String?
+  address   String?
+  addressComplement String?
+  postalCode String?
+  city      String?
+  siret     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  devis    Devis[]
+  invoices Invoice[]
+
+  @@index([userId])
+}
+
+model Devis {
+  id          String   @id @default(cuid())
+  userId      String
+  number      String
+  clientId    String
+  status      String   @default("draft")
+  issueDate   DateTime @default(now())
+  validUntil  DateTime
+  notes       String?
+  globalDiscount Float @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client  Client        @relation(fields: [clientId], references: [id])
+  items   DevisItem[]
+  invoice Invoice?
+
+  @@index([userId])
+  @@index([clientId])
+  @@unique([userId, number])
+}
+
+model DevisItem {
+  id          String   @id @default(cuid())
+  devisId     String
+  designation String
+  description String?
+  quantity    Float
+  unit        String   @default("unité")
+  unitPrice   Float
+  tvaRate     Float    @default(20)
+  createdAt   DateTime @default(now())
+
+  devis Devis @relation(fields: [devisId], references: [id], onDelete: Cascade)
+
+  @@index([devisId])
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  userId      String
+  number      String
+  clientId    String
+  devisId     String?   @unique
+  status      String   @default("draft")
+  issueDate   DateTime @default(now())
+  dueDate     DateTime
+  notes       String?
+  globalDiscount Float @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client        @relation(fields: [clientId], references: [id])
+  devis  Devis?         @relation(fields: [devisId], references: [id], onDelete: SetNull)
+  items  InvoiceItem[]
+
+  @@index([userId])
+  @@index([clientId])
+  @@unique([userId, number])
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  designation String
+  description String?
+  quantity    Float
+  unit        String   @default("unité")
+  unitPrice   Float
+  tvaRate     Float    @default(20)
+  createdAt   DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}

@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: facturapro
+    runtime: node
+    plan: free
+    buildCommand: >
+      npm i -g bun &&
+      bun install &&
+      bunx prisma migrate deploy &&
+      bun run build &&
+      mkdir -p .next/standalone/node_modules/pdfkit/js &&
+      cp -r node_modules/pdfkit/js/data .next/standalone/node_modules/pdfkit/js/data &&
+      mkdir -p .next/standalone/.next &&
+      cp -r .next/static .next/standalone/.next/ &&
+      cp -r public .next/standalone/ &&
+      cp -r prisma .next/standalone/prisma
+    startCommand: node .next/standalone/server.js
+    envVars:
+      - key: HOSTNAME
+        value: 0.0.0.0
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: facturapro-db
+          property: connectionString
+
+databases:
+  - name: facturapro-db
+    plan: free
