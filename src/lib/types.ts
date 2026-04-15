@@ -89,8 +89,24 @@ export interface DashboardData {
   unpaidAmount: number;
   activeClients: number;
   monthlyRevenue: { month: string; revenue: number }[];
-  recentInvoices: Invoice[];
-  recentDevis: Devis[];
+  recentInvoices: DashboardInvoicePreview[];
+  recentDevis: DashboardDevisPreview[];
+}
+
+export interface DashboardInvoicePreview {
+  id: string;
+  number: string;
+  status: InvoiceStatus;
+  client: Pick<Client, 'name' | 'company'>;
+  totalTtc: number;
+}
+
+export interface DashboardDevisPreview {
+  id: string;
+  number: string;
+  status: DevisStatus;
+  client: Pick<Client, 'name' | 'company'>;
+  totalTtc: number;
 }
 
 export interface Settings {
