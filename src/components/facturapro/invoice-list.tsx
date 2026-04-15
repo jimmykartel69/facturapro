@@ -159,16 +159,14 @@ export function InvoiceList() {
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedInvoiceId(inv.id === selectedInvoiceId ? null : inv.id)} title="Voir">
                               <Eye className="w-4 h-4" />
                             </Button>
-                            {inv.status !== 'paid' && (
-                              <>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingInvoiceId(inv.id)} title="Modifier">
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => setDeleteId(inv.id)} title="Supprimer">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </>
+                            {inv.status !== 'paid' && inv.status !== 'cancelled' && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingInvoiceId(inv.id)} title="Modifier">
+                                <Pencil className="w-4 h-4" />
+                              </Button>
                             )}
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => setDeleteId(inv.id)} title="Supprimer">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -185,7 +183,7 @@ export function InvoiceList() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer cette facture ?</AlertDialogTitle>
-            <AlertDialogDescription>Cette action est irréversible. Les factures payées ne peuvent pas être supprimées.</AlertDialogDescription>
+            <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Annuler</AlertDialogCancel>
