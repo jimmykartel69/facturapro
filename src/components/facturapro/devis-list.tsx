@@ -160,15 +160,13 @@ export function DevisList() {
                               <Eye className="w-4 h-4" />
                             </Button>
                             {d.status !== 'converted' && (
-                              <>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingDevisId(d.id)} title="Modifier">
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => setDeleteId(d.id)} title="Supprimer">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingDevisId(d.id)} title="Modifier">
+                                <Pencil className="w-4 h-4" />
+                              </Button>
                             )}
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => setDeleteId(d.id)} title="Supprimer">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
