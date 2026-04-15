@@ -30,7 +30,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useAppStore } from '@/lib/store';
-import { formatCurrency, getDevisStatusBadge, getInvoiceStatusBadge, calculateTotals } from '@/lib/helpers';
+import { formatCurrency, getDevisStatusBadge, getInvoiceStatusBadge } from '@/lib/helpers';
 import type { DevisStatus, InvoiceStatus } from '@/lib/types';
 
 export function Dashboard() {
@@ -101,6 +101,13 @@ export function Dashboard() {
     { title: 'Clients actifs', value: dashboardData.activeClients.toString(), icon: Users, color: 'text-violet-600', bg: 'bg-violet-50' },
   ];
 
+  const chartGridColor = 'var(--border)';
+  const chartAxisTextColor = 'var(--muted-foreground)';
+  const chartBarColor = 'var(--primary)';
+  const chartTooltipBorder = '1px solid var(--border)';
+  const chartTooltipBg = 'var(--card)';
+  const chartTooltipText = 'var(--foreground)';
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -153,15 +160,15 @@ export function Dashboard() {
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dashboardData.monthlyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: chartAxisTextColor }} axisLine={{ stroke: chartGridColor }} tickLine={{ stroke: chartGridColor }} />
+                <YAxis tick={{ fontSize: 12, fill: chartAxisTextColor }} axisLine={{ stroke: chartGridColor }} tickLine={{ stroke: chartGridColor }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
                   formatter={(value: number) => [formatCurrency(value), 'CA']}
-                  labelStyle={{ fontWeight: 600 }}
-                  contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb' }}
+                  labelStyle={{ fontWeight: 600, color: chartTooltipText }}
+                  contentStyle={{ borderRadius: 8, border: chartTooltipBorder, background: chartTooltipBg, color: chartTooltipText }}
                 />
-                <Bar dataKey="revenue" fill="#1a1a2e" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" fill={chartBarColor} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -193,13 +200,12 @@ export function Dashboard() {
                   </TableRow>
                 ) : (
                   dashboardData.recentInvoices.map((inv) => {
-                    const totals = calculateTotals(inv.items);
                     return (
                       <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedInvoiceId(inv.id); setPage('invoices'); }}>
                         <TableCell className="font-mono text-xs">{inv.number}</TableCell>
                         <TableCell className="text-sm">{inv.client.company || inv.client.name}</TableCell>
                         <TableCell>{getInvoiceStatusBadge(inv.status as InvoiceStatus)}</TableCell>
-                        <TableCell className="text-right text-sm font-medium">{formatCurrency(totals.totalTtc)}</TableCell>
+                        <TableCell className="text-right text-sm font-medium">{formatCurrency(inv.totalTtc)}</TableCell>
                       </TableRow>
                     );
                   })
@@ -233,13 +239,12 @@ export function Dashboard() {
                   </TableRow>
                 ) : (
                   dashboardData.recentDevis.map((d) => {
-                    const totals = calculateTotals(d.items);
                     return (
                       <TableRow key={d.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedDevisId(d.id); setPage('devis'); }}>
                         <TableCell className="font-mono text-xs">{d.number}</TableCell>
                         <TableCell className="text-sm">{d.client.company || d.client.name}</TableCell>
                         <TableCell>{getDevisStatusBadge(d.status as DevisStatus)}</TableCell>
-                        <TableCell className="text-right text-sm font-medium">{formatCurrency(totals.totalTtc)}</TableCell>
+                        <TableCell className="text-right text-sm font-medium">{formatCurrency(d.totalTtc)}</TableCell>
                       </TableRow>
                     );
                   })
