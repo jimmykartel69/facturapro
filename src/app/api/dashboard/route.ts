@@ -5,7 +5,6 @@ import { db } from '@/lib/db';
 const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 
 interface InvoiceLike {
-  issueDate: Date;
   globalDiscount: number;
   items: Array<{
     quantity: number;
@@ -49,7 +48,7 @@ export async function GET() {
     const startOfYear = new Date(currentYear, 0, 1);
     const startOfNextYear = new Date(currentYear + 1, 0, 1);
 
-    const [paidInvoicesYear, unpaidInvoicesData, devisCount, activeClients, recentInvoices, recentDevis] =
+    const [paidInvoicesYear, unpaidInvoicesData, devisCount, activeClients, recentInvoicesRaw, recentDevisRaw] =
       await Promise.all([
         db.invoice.findMany({
           where: {
@@ -90,18 +89,30 @@ export async function GET() {
           where: { userId: user.id },
           orderBy: { createdAt: 'desc' },
           take: 5,
-          include: {
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            globalDiscount: true,
             client: { select: { name: true, company: true } },
-            items: true,
+            items: {
+              select: { quantity: true, unitPrice: true, tvaRate: true },
+            },
           },
         }),
         db.devis.findMany({
           where: { userId: user.id },
           orderBy: { createdAt: 'desc' },
           take: 5,
-          include: {
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            globalDiscount: true,
             client: { select: { name: true, company: true } },
-            items: true,
+            items: {
+              select: { quantity: true, unitPrice: true, tvaRate: true },
+            },
           },
         }),
       ]);
@@ -124,6 +135,22 @@ export async function GET() {
     const unpaidAmount = round2(
       unpaidInvoicesData.reduce((sum, invoice) => sum + computeInvoiceTotalTtc(invoice), 0)
     );
+
+    const recentInvoices = recentInvoicesRaw.map((invoice) => ({
+      id: invoice.id,
+      number: invoice.number,
+      status: invoice.status,
+      client: invoice.client,
+      totalTtc: computeInvoiceTotalTtc(invoice),
+    }));
+
+    const recentDevis = recentDevisRaw.map((devis) => ({
+      id: devis.id,
+      number: devis.number,
+      status: devis.status,
+      client: devis.client,
+      totalTtc: computeInvoiceTotalTtc(devis),
+    }));
 
     return NextResponse.json({
       currentMonthRevenue,
