@@ -7,6 +7,7 @@ import {
   Send,
   CheckCircle,
   XCircle,
+  Trash2,
   Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +21,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAppStore } from '@/lib/store';
 import { formatDate, formatCurrency, getInvoiceStatusBadge, calculateTotals } from '@/lib/helpers';
 import type { Invoice, InvoiceStatus } from '@/lib/types';
@@ -30,10 +41,12 @@ export function InvoiceDetail() {
     setSelectedInvoiceId,
     updateInvoiceStatus,
     setEditingInvoiceId,
+    deleteInvoice,
   } = useAppStore();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
   const fetchIdRef = useRef(0);
 
   useEffect(() => {
@@ -73,6 +86,18 @@ export function InvoiceDetail() {
   const handlePdf = () => {
     if (!selectedInvoiceId) return;
     window.open(`/api/invoices/${selectedInvoiceId}/pdf`, '_blank');
+  };
+
+  const handleDelete = async () => {
+    if (!selectedInvoiceId) return;
+    setActionLoading('delete');
+    const err = await deleteInvoice(selectedInvoiceId);
+    setActionLoading(null);
+    if (err) alert(err);
+    else {
+      setShowDelete(false);
+      setSelectedInvoiceId(null);
+    }
   };
 
   if (!selectedInvoiceId) return null;
@@ -141,6 +166,10 @@ export function InvoiceDetail() {
               Annuler
             </Button>
           )}
+          <Button variant="outline" size="sm" className="text-red-600" onClick={() => setShowDelete(true)} disabled={!!actionLoading}>
+            <Trash2 className="w-4 h-4 mr-1.5" />
+            Supprimer
+          </Button>
         </div>
       </div>
 
@@ -219,6 +248,22 @@ export function InvoiceDetail() {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={showDelete} onOpenChange={setShowDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette facture ?</AlertDialogTitle>
+            <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!actionLoading}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={!!actionLoading} className="bg-red-600 hover:bg-red-700">
+              {actionLoading === 'delete' && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
