@@ -182,12 +182,10 @@ export function DevisDetail() {
               Convertir en facture
             </Button>
           )}
-          {canEdit && (
-            <Button variant="outline" size="sm" className="text-red-600" onClick={() => setShowDelete(true)}>
-              <Trash2 className="w-4 h-4 mr-1.5" />
-              Supprimer
-            </Button>
-          )}
+          <Button variant="outline" size="sm" className="text-red-600" onClick={() => setShowDelete(true)}>
+            <Trash2 className="w-4 h-4 mr-1.5" />
+            Supprimer
+          </Button>
         </div>
       </div>
 
