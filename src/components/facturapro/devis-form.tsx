@@ -137,7 +137,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
 
   return (
     <Dialog open={showDevisForm} onOpenChange={(open) => { if (!open) setShowDevisForm(false); }}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{editingDevisId ? 'Modifier le devis' : 'Nouveau devis'}</DialogTitle>
         </DialogHeader>
@@ -146,7 +146,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
           <div className="space-y-2">
             <Label>Client *</Label>
             <Select value={clientId} onValueChange={setClientId} required>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full min-w-0">
                 <SelectValue placeholder="Sélectionner un client" />
               </SelectTrigger>
               <SelectContent>
@@ -161,9 +161,9 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
 
           {/* Line items */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <Label className="font-semibold text-base">Articles</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addItem}>
+              <Button type="button" variant="outline" size="sm" onClick={addItem} className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-1.5" />
                 Ajouter une ligne
               </Button>
@@ -171,10 +171,10 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
 
             <div className="space-y-3">
               {items.map((item, idx) => (
-                <div key={idx} className="border rounded-lg p-3 space-y-3 bg-muted/20">
+                <div key={idx} className="border rounded-lg bg-muted/20 p-3 space-y-4 sm:p-4">
                   {/* Row 1: Designation + Description */}
-                  <div className="grid grid-cols-12 gap-3">
-                    <div className="col-span-12 sm:col-span-4">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+                    <div className="min-w-0 md:col-span-4">
                       <Label className="text-xs font-medium text-muted-foreground mb-1 block">
                         Désignation *
                       </Label>
@@ -185,7 +185,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                         required
                       />
                     </div>
-                    <div className="col-span-12 sm:col-span-8">
+                    <div className="min-w-0 md:col-span-8">
                       <Label className="text-xs font-medium text-muted-foreground mb-1 block">
                         Description
                       </Label>
@@ -200,8 +200,8 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                   </div>
 
                   {/* Row 2: Quantité, Unité, Prix, TVA, Total, Delete */}
-                  <div className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-6 sm:col-span-2">
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-12 md:items-end">
+                    <div className="min-w-0">
                       <Label className="text-xs font-medium text-muted-foreground mb-1 block">
                         Quantité
                       </Label>
@@ -214,12 +214,12 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                         required
                       />
                     </div>
-                    <div className="col-span-6 sm:col-span-2">
+                    <div className="min-w-0 md:col-span-2">
                       <Label className="text-xs font-medium text-muted-foreground mb-1 block">
                         Unité
                       </Label>
                       <Select value={item.unit} onValueChange={(v) => updateItem(idx, 'unit', v)}>
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full min-w-0">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -231,7 +231,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="col-span-6 sm:col-span-2">
+                    <div className="min-w-0 md:col-span-2">
                       <Label className="text-xs font-medium text-muted-foreground mb-1 block">
                         Prix unit. HT
                       </Label>
@@ -244,7 +244,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                         required
                       />
                     </div>
-                    <div className="col-span-4 sm:col-span-2">
+                    <div className="min-w-0 md:col-span-3">
                       <Label className="text-xs font-medium text-muted-foreground mb-1 block">
                         TVA %
                       </Label>
@@ -252,7 +252,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                         value={String(item.tvaRate)}
                         onValueChange={(v) => updateItem(idx, 'tvaRate', parseFloat(v))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full min-w-0">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -263,15 +263,15 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="col-span-6 sm:col-span-3">
+                    <div className="col-span-2 min-w-0 md:col-span-2">
                       <Label className="text-xs font-medium text-muted-foreground mb-1 block">
                         Total HT
                       </Label>
-                      <div className="flex items-center h-9 px-3 bg-muted rounded-md border text-sm font-semibold">
+                      <div className="flex min-w-0 items-center h-9 px-3 bg-muted rounded-md border text-sm font-semibold">
                         {formatCurrency(item.quantity * item.unitPrice)}
                       </div>
                     </div>
-                    <div className="col-span-6 sm:col-span-1 flex justify-end items-center">
+                    <div className="col-span-2 flex justify-end items-center md:col-span-1">
                       <Button
                         type="button"
                         variant="ghost"
@@ -312,7 +312,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
               <span>{formatCurrency(totals.totalTtc)}</span>
             </div>
             <Separator />
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <Label className="text-sm whitespace-nowrap">Remise (%)</Label>
                 <Input
@@ -330,7 +330,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
           </div>
 
           {/* Date + Notes */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="devis-valid">Valide jusqu&apos;au</Label>
               <Input
