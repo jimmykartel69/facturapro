@@ -75,7 +75,6 @@ interface ColWidths {
 interface CgvSection {
   title: string;
   paragraphs: string[];
-  bullets?: string[];
 }
 
 const C = {
@@ -93,118 +92,252 @@ const C = {
   success: '#16a34a',
 };
 
+const NEOVOLT_CGV_INTRO = [
+  "Les présentes Conditions Générales de Vente et de Sous-Traitance s'appliquent aux prestations d'électricité générale réalisées par NeoVolt pour le compte de clients professionnels, entreprises principales ou donneurs d'ordre.",
+  "Les conditions particulières figurant sur le devis ou sur un contrat de sous-traitance accepté prévalent sur les présentes CGV en cas de contradiction."
+];
+
 const NEOVOLT_CGV_SECTIONS: CgvSection[] = [
   {
-    title: '1. Objet',
-    paragraphs: [
-      "Les présentes Conditions Générales de Vente (CGV) définissent les modalités d'intervention de la société NeoVolt, spécialisée en travaux d'électricité générale, auprès de ses clients professionnels et particuliers.",
-      'Toute signature de devis implique l’acceptation sans réserve des présentes CGV.',
-    ],
+    "title": "1. Objet",
+    "paragraphs": [
+      "Les présentes conditions définissent les modalités selon lesquelles NeoVolt réalise les prestations décrites au devis accepté.",
+      "Les prestations de NeoVolt sont strictement limitées aux travaux, fournitures et interventions expressément prévus au devis ou dans tout document contractuel accepté par les parties.",
+      "Tout travail non prévu au périmètre initial constitue une prestation supplémentaire."
+    ]
   },
   {
-    title: '2. Devis et commande',
-    paragraphs: ['Les devis émis par NeoVolt sont valables pour une durée de 30 jours à compter de leur date d’émission.'],
-    bullets: [
-      'signature du devis avec la mention « Bon pour accord »',
-      "versement de l'acompte prévu",
-    ],
+    "title": "2. Formation de la commande",
+    "paragraphs": [
+      "Sauf indication contraire, les devis émis par NeoVolt sont valables pendant 30 jours à compter de leur date d'émission.",
+      "La commande devient ferme après acceptation du devis par le client ou le donneur d'ordre, notamment par :",
+      "- signature du devis avec la mention « Bon pour accord » ;",
+      "- validation écrite ou électronique non équivoque ;",
+      "- et, lorsqu'il est prévu, versement de l'acompte demandé.",
+      "Les conditions particulières mentionnées sur le devis prévalent sur les présentes CGV.",
+      "Toute modification postérieure à l'acceptation devra faire l'objet d'un accord écrit entre les parties."
+    ]
   },
   {
-    title: '3. Modalités de paiement',
-    paragraphs: [
-      'Un acompte de 30 % est exigible à la signature du devis pour toute prestation supérieure à 500 €.',
-      'Le solde est payable à réception de la facture, par virement bancaire, sans escompte.',
-      'Aucun escompte ne sera accordé pour paiement anticipé.',
-    ],
+    "title": "3. Prix et modalités de paiement",
+    "paragraphs": [
+      "Les prix applicables sont ceux figurant au devis accepté.",
+      "Sauf conditions particulières différentes indiquées sur le devis, un acompte de 30 % pourra être demandé à la commande pour toute prestation d'un montant supérieur à 500 €.",
+      "Lorsque le devis prévoit expressément un paiement intégral à réception de facture, cette condition prévaut sur l'acompte prévu ci-dessus.",
+      "Le solde est payable selon l'échéance indiquée sur la facture, par virement bancaire ou tout autre moyen accepté par NeoVolt.",
+      "Aucun escompte n'est accordé pour paiement anticipé, sauf accord écrit contraire."
+    ]
   },
   {
-    title: '4. Retard de paiement',
-    paragraphs: [
-      'Tout retard de paiement entraînera, de plein droit et sans mise en demeure préalable :',
-      "conformément à l'article L441-10 du Code de commerce.",
-      "NeoVolt se réserve le droit de suspendre toute intervention en cours en cas de non-paiement.",
-    ],
-    bullets: [
-      'l’application de pénalités calculées sur la base du taux directeur de la Banque Centrale Européenne majoré de 10 points',
-      'une indemnité forfaitaire de 40 € pour frais de recouvrement',
-    ],
+    "title": "4. Retard de paiement – Clients professionnels",
+    "paragraphs": [
+      "Toute somme non réglée à son échéance entraîne, de plein droit et sans qu'un rappel préalable soit nécessaire, l'application de pénalités de retard conformément à l'article L.441-10 du Code de commerce.",
+      "Le taux des pénalités est égal au taux d'intérêt appliqué par la Banque centrale européenne à son opération de refinancement la plus récente, majoré de 10 points de pourcentage, sauf disposition contractuelle différente conforme à la réglementation applicable.",
+      "Tout professionnel en situation de retard de paiement est également redevable de plein droit d'une indemnité forfaitaire de 40 € pour frais de recouvrement.",
+      "Lorsque les frais de recouvrement réellement exposés sont supérieurs à cette indemnité, NeoVolt pourra demander une indemnisation complémentaire sur justification, dans les conditions prévues par la réglementation."
+    ]
   },
   {
-    title: "5. Délais d'intervention",
-    paragraphs: ['Les délais d’intervention sont donnés à titre indicatif.'],
-    bullets: [
-      'indisponibilité des matériaux',
-      'conditions climatiques',
-      'contraintes techniques imprévues',
-      'retard imputable au client',
-    ],
+    "title": "5. Délais d'exécution",
+    "paragraphs": [
+      "Les dates et délais d'intervention indiqués au devis constituent des prévisions sauf engagement écrit exprès de NeoVolt sur une date impérative.",
+      "Les délais peuvent être prolongés lorsque l'exécution est retardée par une circonstance indépendante de NeoVolt, notamment :",
+      "- indisponibilité ou retard de livraison des fournitures ;",
+      "- impossibilité d'accès au chantier ;",
+      "- intervention ou retard d'un autre corps d'état ;",
+      "- découverte d'une contrainte technique non apparente lors de l'établissement du devis ;",
+      "- modification demandée par le client ou le donneur d'ordre ;",
+      "- conditions de sécurité ne permettant pas l'intervention ;",
+      "- événement de force majeure.",
+      "NeoVolt informe le donneur d'ordre dans un délai raisonnable lorsqu'un événement entraîne une modification significative du planning."
+    ]
   },
   {
-    title: '6. Exécution des travaux',
-    paragraphs: [
-      'Les travaux sont réalisés conformément au devis accepté.',
-      "Toute modification demandée en cours de prestation fera l'objet d'un devis complémentaire.",
-      "Le client s'engage à :",
-    ],
-    bullets: [
-      "garantir l'accès au chantier",
-      'fournir un environnement sécurisé',
-      'signaler toute contrainte technique connue',
-    ],
+    "title": "6. Exécution des travaux",
+    "paragraphs": [
+      "NeoVolt réalise les prestations conformément au périmètre défini au devis, aux règles de l'art et aux prescriptions techniques applicables aux travaux concernés.",
+      "Toute prestation supplémentaire ou modification demandée en cours d'intervention pourra donner lieu à :",
+      "- un devis complémentaire ;",
+      "- un avenant ;",
+      "- ou un accord écrit précisant le prix supplémentaire.",
+      "NeoVolt n'est pas tenu d'exécuter des travaux supplémentaires sans accord sur leur nature et leur rémunération."
+    ]
   },
   {
-    title: '7. Réserve de propriété',
-    paragraphs: ['Les équipements, matériels et installations fournis restent la propriété de NeoVolt jusqu’au paiement intégral de la facture.'],
+    "title": "7. Obligations du client ou donneur d'ordre",
+    "paragraphs": [
+      "Le client ou donneur d'ordre s'engage à :",
+      "- assurer l'accès aux locaux et aux zones d'intervention ;",
+      "- communiquer les informations nécessaires à l'exécution des travaux ;",
+      "- signaler les risques, réseaux, installations ou contraintes techniques dont il a connaissance ;",
+      "- garantir des conditions d'intervention compatibles avec les règles de sécurité ;",
+      "- assurer, lorsque cela relève de sa responsabilité, la coordination avec les autres intervenants du chantier ;",
+      "- obtenir les autorisations nécessaires relevant de sa responsabilité.",
+      "NeoVolt ne pourra être tenu responsable des conséquences résultant d'informations erronées, incomplètes ou dissimulées par le donneur d'ordre."
+    ]
   },
   {
-    title: '8. Responsabilité',
-    paragraphs: [
-      "NeoVolt est tenu à une obligation de moyens dans l'exécution de ses prestations.",
-      'La responsabilité de NeoVolt ne pourra être engagée en cas de :',
-    ],
-    bullets: [
-      'mauvaise utilisation des installations',
-      "intervention d'un tiers",
-      "défaut non détectable lors de l'intervention",
-    ],
+    "title": "8. Matériels et fournitures",
+    "paragraphs": [
+      "Les matériels et fournitures fournis par NeoVolt sont choisis en fonction du devis accepté et des caractéristiques connues de l'installation.",
+      "Lorsque certains matériels sont imposés ou directement fournis par le client, le donneur d'ordre ou un tiers, NeoVolt ne garantit pas leur qualité intrinsèque, leur durée de vie ou leur conformité aux performances annoncées par leur fabricant.",
+      "NeoVolt reste responsable de la qualité de sa propre mise en œuvre dans les limites de la prestation confiée.",
+      "Toute incompatibilité manifeste constatée avant installation est signalée au donneur d'ordre."
+    ]
   },
   {
-    title: '9. Garanties',
-    paragraphs: ['Les prestations bénéficient des garanties légales en vigueur :'],
-    bullets: [
-      'garantie de parfait achèvement',
-      'garantie biennale',
-      'garantie décennale (si applicable)',
-    ],
+    "title": "9. Réserve de propriété",
+    "paragraphs": [
+      "Les matériels et équipements livrés mais non encore incorporés de manière définitive à l'ouvrage restent la propriété de NeoVolt jusqu'au paiement intégral des sommes dues au titre de leur fourniture.",
+      "Le transfert des risques intervient selon les règles applicables à la livraison, à la détention et à l'installation des matériels concernés.",
+      "La présente clause ne saurait autoriser NeoVolt à procéder au démontage d'un équipement incorporé à l'ouvrage en dehors des conditions et voies de droit légalement applicables."
+    ]
   },
   {
-    title: '10. Annulation',
-    paragraphs: ['Toute annulation de commande après signature pourra entraîner la facturation :'],
-    bullets: [
-      "de l'acompte versé (conservé)",
-      'des frais engagés (matériel, déplacement, main-d’œuvre)',
-    ],
+    "title": "10. Responsabilité",
+    "paragraphs": [
+      "NeoVolt répond de la bonne exécution des prestations relevant de son périmètre contractuel.",
+      "Sa responsabilité ne saurait être engagée pour les dommages directement imputables notamment :",
+      "- à une installation existante défectueuse située hors du périmètre des travaux ;",
+      "- à une mauvaise utilisation postérieure à l'intervention ;",
+      "- à la modification de l'installation par un tiers ;",
+      "- à un défaut ou désordre qui ne pouvait raisonnablement être détecté lors de l'intervention ;",
+      "- à un matériel fourni ou imposé par un tiers, sous réserve des obligations propres de NeoVolt concernant sa mise en œuvre ;",
+      "- au non-respect par le donneur d'ordre des préconisations écrites de NeoVolt.",
+      "Aucune disposition des présentes CGV ne peut avoir pour effet d'exclure une responsabilité ou une garantie légalement impérative applicable à NeoVolt."
+    ]
   },
   {
-    title: '11. Litiges et juridiction compétente',
-    paragraphs: ['Tout litige relatif à l’exécution des prestations sera soumis aux tribunaux compétents du ressort du siège social de NeoVolt, sauf disposition légale contraire.'],
+    "title": "11. Garanties",
+    "paragraphs": [
+      "Les prestations réalisées bénéficient des garanties légales et contractuelles applicables en fonction de la nature des travaux, de la qualité des parties et du rôle de NeoVolt dans l'opération de construction.",
+      "Lorsque NeoVolt intervient directement en qualité d'entrepreneur auprès du maître d'ouvrage, les garanties légales relatives aux travaux de construction s'appliquent lorsque leurs conditions légales sont réunies.",
+      "Lorsque NeoVolt intervient en qualité de sous-traitant, ses obligations et responsabilités sont appréciées au regard du contrat de sous-traitance, de la nature de ses travaux et des dispositions légales applicables à la sous-traitance.",
+      "Les garanties ne couvrent notamment pas l'usure normale, la mauvaise utilisation, les modifications réalisées ultérieurement par un tiers ou les dommages provenant d'éléments extérieurs à la prestation réalisée par NeoVolt."
+    ]
   },
   {
-    title: '12. Droit applicable',
-    paragraphs: ['Les présentes CGV sont soumises au droit français.'],
+    "title": "12. Annulation ou résiliation de la commande",
+    "paragraphs": [
+      "En cas d'annulation par le donneur d'ordre après acceptation du devis et avant l'achèvement des travaux, NeoVolt pourra facturer :",
+      "- les prestations déjà exécutées ;",
+      "- les fournitures spécialement commandées et ne pouvant être raisonnablement retournées ;",
+      "- les frais directement engagés pour le chantier ;",
+      "- ainsi que, le cas échéant, le préjudice directement subi et justifiable résultant de l'annulation.",
+      "Les sommes déjà versées seront imputées sur les montants effectivement dus.",
+      "L'acompte n'est donc pas automatiquement acquis dans tous les cas indépendamment des circonstances de l'annulation.",
+      "En cas de résiliation imputable à NeoVolt, les prestations non réalisées ne seront pas facturées et les sommes éventuellement perçues au titre de prestations non exécutées seront restituées."
+    ]
   },
   {
-    title: "13. Clause d'arrêt immédiat chantier",
-    paragraphs: ['NeoVolt se réserve le droit d’interrompre immédiatement les travaux en cas de défaut de paiement ou de non-respect des conditions contractuelles, sans que cela n’engage sa responsabilité.'],
+    "title": "13. Suspension ou arrêt du chantier",
+    "paragraphs": [
+      "NeoVolt peut suspendre l'exécution de ses prestations en cas notamment :",
+      "- de défaut de paiement arrivé à échéance ;",
+      "- de manquement contractuel sérieux du donneur d'ordre ;",
+      "- d'impossibilité matérielle d'accéder au chantier ;",
+      "- de danger pour les personnes ou les biens ;",
+      "- de conditions d'intervention incompatibles avec les règles de sécurité.",
+      "En cas de défaut de paiement ou de manquement contractuel pouvant être régularisé, la suspension intervient après information ou mise en demeure restée sans effet pendant un délai raisonnable, sauf situation urgente.",
+      "En présence d'un danger immédiat pour les personnes, les biens ou les installations, NeoVolt peut interrompre immédiatement son intervention.",
+      "Cette suspension n'emporte pas renonciation au paiement des travaux et frais déjà engagés."
+    ]
   },
   {
-    title: '14. Clause de réception chantier',
-    paragraphs: ['Les travaux sont réputés réceptionnés sans réserve si aucune contestation écrite n’est formulée dans un délai de 48 heures après intervention.'],
+    "title": "14. Réception des travaux",
+    "paragraphs": [
+      "Lorsque la nature des travaux le justifie, leur achèvement peut donner lieu à une réception contradictoire entre les parties.",
+      "La réception peut être prononcée avec ou sans réserve.",
+      "Les éventuelles réserves doivent être décrites aussi précisément que possible afin de permettre leur traitement.",
+      "La seule absence de contestation dans un délai de 48 heures ne vaut pas automatiquement réception sans réserve.",
+      "À défaut de procès-verbal formel, l'existence et la date d'une éventuelle réception sont appréciées conformément aux règles légales applicables et aux circonstances de l'exécution du chantier."
+    ]
   },
   {
-    title: '15. Clause matériaux / hausse prix',
-    paragraphs: ['En cas de variation significative du coût des matériaux, NeoVolt se réserve le droit d’ajuster les tarifs après information du client.'],
+    "title": "15. Travaux imprévus et installations existantes",
+    "paragraphs": [
+      "Le devis est établi sur la base des éléments visibles et des informations disponibles au moment de son établissement.",
+      "La découverte en cours de chantier notamment :",
+      "- d'une installation non conforme ;",
+      "- d'un câblage dégradé ;",
+      "- d'un défaut d'isolement ;",
+      "- d'une canalisation ou d'un réseau dissimulé ;",
+      "- d'un support impropre à la pose ;",
+      "- d'une absence de continuité de terre ;",
+      "- d'une modification antérieure non visible ;",
+      "- ou de toute autre difficulté technique non raisonnablement décelable avant travaux",
+      "peut nécessiter des travaux supplémentaires.",
+      "NeoVolt informe alors le donneur d'ordre et lui soumet, lorsque cela a une incidence sur le prix ou le périmètre, une proposition complémentaire avant réalisation, sauf mesure conservatoire urgente nécessaire à la sécurité."
+    ]
   },
+  {
+    "title": "16. Variation du prix des matériaux",
+    "paragraphs": [
+      "Les prix figurant sur un devis accepté ne peuvent être modifiés unilatéralement par NeoVolt en raison d'une simple hausse du prix des matériaux.",
+      "En cas de modification importante du projet, de demande complémentaire du donneur d'ordre, de changement de référence imposé ou de circonstances modifiant substantiellement le périmètre prévu, une adaptation du prix pourra être proposée.",
+      "Cette adaptation devra faire l'objet d'un accord préalable du donneur d'ordre, notamment sous la forme d'un avenant ou d'un devis complémentaire.",
+      "Après expiration de la durée de validité d'un devis non encore accepté, NeoVolt est libre d'établir une nouvelle proposition tarifaire."
+    ]
+  },
+  {
+    "title": "17. Force majeure",
+    "paragraphs": [
+      "Aucune partie ne pourra être tenue responsable d'un retard ou d'une inexécution résultant d'un événement présentant les caractéristiques de la force majeure au sens du droit français.",
+      "La partie concernée informe l'autre partie dans les meilleurs délais.",
+      "Les obligations empêchées sont suspendues pendant la durée de l'événement lorsque celui-ci est temporaire.",
+      "Si l'empêchement devient définitif ou rend raisonnablement impossible la poursuite du contrat, les parties déterminent les conséquences de la cessation du contrat conformément au droit applicable."
+    ]
+  },
+  {
+    "title": "18. Dispositions spécifiques à la sous-traitance",
+    "paragraphs": [
+      "Lorsque NeoVolt intervient pour le compte d'une entreprise principale en qualité de sous-traitant, les dispositions impératives de la loi n° 75-1334 du 31 décembre 1975 relative à la sous-traitance s'appliquent lorsqu'elles entrent dans le champ de l'opération concernée.",
+      "L'entreprise principale accomplit les formalités qui lui incombent notamment concernant, lorsque la loi l'exige :",
+      "- la déclaration et l'acceptation du sous-traitant par le maître d'ouvrage ;",
+      "- l'agrément de ses conditions de paiement ;",
+      "- et la mise en place des garanties de paiement légalement requises.",
+      "Les relations entre le maître d'ouvrage et l'entreprise principale ne modifient pas, sauf disposition légale ou accord écrit contraire, le prix convenu entre NeoVolt et son donneur d'ordre.",
+      "NeoVolt n'est responsable que du périmètre des prestations qui lui sont contractuellement confiées.",
+      "Les travaux réalisés par l'entreprise principale, les autres sous-traitants ou tout autre intervenant demeurent sous la responsabilité de leurs auteurs respectifs."
+    ]
+  },
+  {
+    "title": "19. Assurance professionnelle",
+    "paragraphs": [
+      "NeoVolt maintient les assurances professionnelles correspondant aux activités et travaux effectivement déclarés à son assureur.",
+      "Lorsque la nature des travaux rend obligatoire une assurance de responsabilité décennale, les justificatifs prévus par la réglementation sont communiqués conformément aux dispositions applicables.",
+      "Assureur : À venir\nN° de contrat : À venir\nActivités garanties : À venir\nZone géographique de couverture : À venir",
+      "Aucune mention figurant dans les présentes CGV ne saurait étendre les garanties de l'assureur au-delà des activités et conditions effectivement prévues au contrat d'assurance."
+    ]
+  },
+  {
+    "title": "20. Règlement amiable et litiges",
+    "paragraphs": [
+      "En cas de difficulté relative à l'interprétation ou à l'exécution du contrat, les parties s'efforcent de rechercher préalablement une solution amiable.",
+      "À défaut d'accord, le litige est porté devant la juridiction territorialement et matériellement compétente selon les règles légales applicables.",
+      "Aucune clause attributive de juridiction contraire aux dispositions impératives applicables ne pourra être opposée à l'une des parties."
+    ]
+  },
+  {
+    "title": "21. Droit applicable et hiérarchie contractuelle",
+    "paragraphs": [
+      "Les présentes CGV et les contrats auxquels elles se rapportent sont soumis au droit français.",
+      "L'ordre de priorité contractuelle est, sauf convention contraire :",
+      "1. les éventuelles conditions particulières ou le contrat de sous-traitance signé ;",
+      "2. le devis accepté et ses éventuels avenants ;",
+      "3. les présentes Conditions Générales de Vente et de Sous-Traitance.",
+      "Si une disposition des présentes CGV devait être déclarée nulle ou inapplicable, les autres dispositions conserveraient leur effet."
+    ]
+  }
+];
+
+const NEOVOLT_CGV_CLOSING = [
+  "NEOVOLT",
+  "SIRET : 788 947 836 00037",
+  "Tél. : +33 6 68 56 99 53",
+  "E-mail : contact-nv@neovolt69.fr",
+  "Site : neovolt69.fr",
+  "TVA non applicable, article L. 223-3 du Code des impositions sur les biens et services (CIBS)."
 ];
 
 const PW = 595.28;
@@ -1040,65 +1173,55 @@ function drawPremiumClosingNote(ctx: Ctx): void {
 }
 
 function estimateCgvSectionHeight(doc: PDFDocument, section: CgvSection, width: number): number {
-  let height = 10;
-  height += measureText(doc, section.title, width, 'Helvetica-Bold', 8.2) + 3;
-
+  let height = 20;
+  height += measureText(doc, section.title, width, 'Helvetica-Bold', 9.2) + 6;
   for (const paragraph of section.paragraphs) {
-    height += measureText(doc, paragraph, width, 'Helvetica', 7.2) + 2;
+    height += measureText(doc, paragraph, width, 'Helvetica', 8.3) + 4;
   }
-
-  if (section.bullets) {
-    for (const bullet of section.bullets) {
-      height += measureText(doc, `- ${bullet}`, width, 'Helvetica', 7.2) + 2;
-    }
-  }
-
-  return Math.max(34, height + 8);
+  return height;
 }
 
 function startCgvAnnexPage(ctx: Ctx, continuation = false): void {
   drawFooter(ctx);
   ctx.doc.addPage();
   ctx.pageNum += 1;
-  ctx.y = MG;
-
   drawAccentBar(ctx);
 
-  const title = continuation
-    ? 'ANNEXE - CONDITIONS GENERALES DE VENTE (SUITE)'
-    : 'ANNEXE - CONDITIONS GENERALES DE VENTE';
+  const title = 'ANNEXE - CONDITIONS GÉNÉRALES DE VENTE ET DE SOUS-TRAITANCE';
+  const titleHeight = measureText(ctx.doc, title, CW, 'Helvetica-Bold', 10);
+  ctx.doc.fillColor(C.primary).text(title, MG, 18, { width: CW });
+  ctx.y = 18 + titleHeight + 7;
 
-  ctx.doc.font('Helvetica-Bold').fontSize(9.2).fillColor(C.primary);
-  ctx.doc.text(title, MG, 13, { width: CW * 0.7 });
+  const reference = (ctx.docType === 'devis' ? 'Devis' : 'Facture') + ' n° ' + ctx.docNumber + (continuation ? ' | Suite' : '');
+  const referenceHeight = measureText(ctx.doc, reference, CW, 'Helvetica', 8);
+  ctx.doc.fillColor(C.textSec).text(reference, MG, ctx.y, { width: CW });
+  ctx.y += referenceHeight + 12;
+  if (continuation) return;
 
-  ctx.doc.font('Helvetica').fontSize(7).fillColor(C.textSec);
-  ctx.doc.text(`${ctx.docType === 'devis' ? 'DEVIS' : 'FACTURE'} N° ${ctx.docNumber}`, MG + CW * 0.46, 13, {
-    width: CW * 0.54,
-    align: 'right',
-  });
-
-  const introHeight = continuation ? 24 : 40;
-  ctx.doc.roundedRect(MG, 36, CW, introHeight, 6).fill(C.bgLight);
-  ctx.doc.roundedRect(MG, 36, CW, introHeight, 6).strokeColor(C.border).lineWidth(0.6).stroke();
-
-  ctx.doc.font('Helvetica-Bold').fontSize(8).fillColor(C.primary);
-  ctx.doc.text('Société : NeoVolt', MG + 10, 44, { width: CW - 20 });
-
-  ctx.doc.font('Helvetica').fontSize(7.2).fillColor(C.textSec);
-  const introText = continuation
-    ? 'Suite des clauses contractuelles annexées.'
-    : "Les présentes CGV sont annexées au document et s'appliquent aux prestations d'électricité générale.";
-  ctx.doc.text(introText, MG + 10, 56, { width: CW - 20 });
-
-  ctx.y = 36 + introHeight + 10;
+  const introWidth = CW - 22;
+  const introHeight = 36 + NEOVOLT_CGV_INTRO.reduce(
+    (height, paragraph) => height + measureText(ctx.doc, paragraph, introWidth, 'Helvetica', 8.3) + 5,
+    0,
+  );
+  ctx.doc.roundedRect(MG, ctx.y, CW, introHeight, 6).fill(C.bgLight);
+  ctx.doc.roundedRect(MG, ctx.y, CW, introHeight, 6).strokeColor(C.border).lineWidth(0.6).stroke();
+  let y = ctx.y + 10;
+  ctx.doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.primary);
+  ctx.doc.text('Prestataire : NeoVolt', MG + 11, y, { width: introWidth });
+  y += 16;
+  for (const paragraph of NEOVOLT_CGV_INTRO) {
+    const height = measureText(ctx.doc, paragraph, introWidth, 'Helvetica', 8.3);
+    ctx.doc.fillColor(C.textSec).text(paragraph, MG + 11, y, { width: introWidth });
+    y += height + 5;
+  }
+  ctx.y += introHeight + 12;
 }
 
 function drawCgvAnnex(ctx: Ctx): void {
   const { doc } = ctx;
   const padX = 11;
   const textWidth = CW - padX * 2;
-
-  startCgvAnnexPage(ctx, false);
+  startCgvAnnexPage(ctx);
 
   const ensureCgvSpace = (needed: number): void => {
     if (ctx.y + needed <= CONTENT_BOTTOM) return;
@@ -1108,32 +1231,35 @@ function drawCgvAnnex(ctx: Ctx): void {
   for (const section of NEOVOLT_CGV_SECTIONS) {
     const blockHeight = estimateCgvSectionHeight(doc, section, textWidth);
     ensureCgvSpace(blockHeight + 8);
-
     doc.roundedRect(MG, ctx.y, CW, blockHeight, 5).fill(C.white);
     doc.roundedRect(MG, ctx.y, CW, blockHeight, 5).strokeColor(C.border).lineWidth(0.45).stroke();
-
-    let y = ctx.y + 8;
-
-    doc.font('Helvetica-Bold').fontSize(8.2).fillColor(C.accent);
+    let y = ctx.y + 10;
+    doc.font('Helvetica-Bold').fontSize(9.2).fillColor(C.accent);
     doc.text(section.title, MG + padX, y, { width: textWidth });
-    y += measureText(doc, section.title, textWidth, 'Helvetica-Bold', 8.2) + 3;
+    y += measureText(doc, section.title, textWidth, 'Helvetica-Bold', 9.2) + 6;
 
-    doc.font('Helvetica').fontSize(7.2).fillColor(C.textSec);
+    // Keep paragraphs and list items in their contractual reading order.
+    doc.font('Helvetica').fontSize(8.3).fillColor(C.textSec);
     for (const paragraph of section.paragraphs) {
       doc.text(paragraph, MG + padX, y, { width: textWidth });
-      y += measureText(doc, paragraph, textWidth, 'Helvetica', 7.2) + 2;
+      y += measureText(doc, paragraph, textWidth, 'Helvetica', 8.3) + 4;
     }
-
-    if (section.bullets) {
-      for (const bullet of section.bullets) {
-        const bulletText = `- ${bullet}`;
-        doc.text(bulletText, MG + padX, y, { width: textWidth });
-        y += measureText(doc, bulletText, textWidth, 'Helvetica', 7.2) + 2;
-      }
-    }
-
     ctx.y += blockHeight + 8;
   }
+
+  const closingHeight = 20 + NEOVOLT_CGV_CLOSING.reduce(
+    (height, line) => height + measureText(doc, line, textWidth, 'Helvetica', 8.3) + 4,
+    0,
+  );
+  ensureCgvSpace(closingHeight);
+  doc.roundedRect(MG, ctx.y, CW, closingHeight, 6).fill(C.bgLight);
+  let y = ctx.y + 10;
+  for (const line of NEOVOLT_CGV_CLOSING) {
+    const height = measureText(doc, line, textWidth, 'Helvetica', 8.3);
+    doc.fillColor(C.textSec).text(line, MG + padX, y, { width: textWidth });
+    y += height + 4;
+  }
+  ctx.y += closingHeight;
 }
 
 function buildDocument(
