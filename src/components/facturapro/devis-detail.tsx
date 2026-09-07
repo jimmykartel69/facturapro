@@ -49,6 +49,7 @@ export function DevisDetail() {
     convertDevisToInvoice,
     setEditingDevisId,
   } = useAppStore();
+  const storedDevis = useAppStore((state) => state.devis.find((entry) => entry.id === selectedDevisId));
   const [devis, setDevis] = useState<DevisDetailFull | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export function DevisDetail() {
         }
       });
     return () => { fetchIdRef.current++; };
-  }, [selectedDevisId, setSelectedDevisId]);
+  }, [selectedDevisId, setSelectedDevisId, storedDevis]);
 
   const handleStatus = async (status: DevisStatus) => {
     if (!selectedDevisId) return;
@@ -149,6 +150,12 @@ export function DevisDetail() {
             {devis.client.company || devis.client.name}
             {devis.client.company && devis.client.name && ` — ${devis.client.name}`}
           </p>
+          {devis.siteReference && (
+            <p className="text-sm mt-2 break-words">
+              <span className="text-muted-foreground">Référence du chantier : </span>
+              {devis.siteReference}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {canEdit && (

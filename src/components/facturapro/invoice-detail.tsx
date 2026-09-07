@@ -134,6 +134,12 @@ export function InvoiceDetail() {
             {invoice.client.company || invoice.client.name}
             {invoice.client.company && invoice.client.name && ` — ${invoice.client.name}`}
           </p>
+          {invoice.siteReference && (
+            <p className="text-sm mt-2 break-words">
+              <span className="text-muted-foreground">Référence du chantier : </span>
+              {invoice.siteReference}
+            </p>
+          )}
           {invoice.devis && (
             <p className="text-xs text-muted-foreground mt-1">
               Devis d&apos;origine : {invoice.devis.number}

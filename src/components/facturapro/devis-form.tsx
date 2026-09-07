@@ -81,6 +81,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
         }))
       : [emptyItem()]
   );
+  const [siteReference, setSiteReference] = useState(() => existing?.siteReference || '');
   const [notes, setNotes] = useState(() => existing?.notes || '');
   const [globalDiscount, setGlobalDiscount] = useState(() => existing?.globalDiscount || 0);
   const [validUntil, setValidUntil] = useState(
@@ -112,6 +113,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
     setLoading(true);
     const data = {
       clientId,
+      siteReference: siteReference.trim() || null,
       items: items.map(({ designation, description, quantity, unit, unitPrice, tvaRate }) => ({
         designation: designation || 'Sans titre',
         description: description || null,
@@ -157,6 +159,21 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="devis-site-reference">Référence du chantier</Label>
+            <Input
+              id="devis-site-reference"
+              value={siteReference}
+              onChange={(e) => setSiteReference(e.target.value)}
+              maxLength={120}
+              placeholder="Ex. : CH-2026-042 - Rénovation cuisine, Lyon"
+              aria-describedby="devis-site-reference-help"
+            />
+            <p id="devis-site-reference-help" className="text-xs text-muted-foreground">
+              Facultatif. Affiché sur le PDF et repris sur la facture issue du devis.
+            </p>
           </div>
 
           {/* Line items */}

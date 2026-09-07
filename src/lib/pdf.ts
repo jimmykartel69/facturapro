@@ -60,6 +60,7 @@ interface Ctx {
   items: BillingItem[];
   globalDiscount: number;
   documentNotes?: string | null;
+  siteReference?: string | null;
   totals: TotalsBreakdown;
 }
 
@@ -865,6 +866,20 @@ function drawItemsTable(ctx: Ctx): void {
   ctx.y += 10;
 }
 
+function drawSiteReference(ctx: Ctx): void {
+  const reference = clean(ctx.siteReference);
+  if (!reference) return;
+  const width = CW - 24;
+  const height = measureText(ctx.doc, reference, width, 'Helvetica-Bold', 10) + 36;
+  ensureSpace(ctx, height + 10);
+  ctx.doc.roundedRect(MG, ctx.y, CW, height, 6).fill(C.accentSoft);
+  ctx.doc.font('Helvetica').fontSize(7.5).fillColor(C.textSec);
+  ctx.doc.text('RÉFÉRENCE DU CHANTIER', MG + 12, ctx.y + 9, { width });
+  ctx.doc.font('Helvetica-Bold').fontSize(10).fillColor(C.primary);
+  ctx.doc.text(reference, MG + 12, ctx.y + 23, { width });
+  ctx.y += height + 10;
+}
+
 function drawNotesBlock(ctx: Ctx): void {
   const notes: Array<{ title: string; body: string }> = [];
   if (clean(ctx.documentNotes)) {
@@ -1273,6 +1288,7 @@ function buildDocument(
   extraDate?: Date,
   devisNumber?: string | null,
   documentNotes?: string | null,
+  siteReference?: string | null,
 ): Promise<Buffer> {
   const doc = new PDFDocument({
     size: 'A4',
@@ -1308,6 +1324,7 @@ function buildDocument(
         items,
         globalDiscount,
         documentNotes,
+        siteReference,
         totals,
       };
 
@@ -1319,6 +1336,7 @@ function buildDocument(
       ctx.y += 12;
 
       drawClientCard(ctx);
+      drawSiteReference(ctx);
       drawItemsTable(ctx);
       drawNotesBlock(ctx);
       drawTotals(ctx);
@@ -1354,6 +1372,7 @@ export async function generateDevisPDF(
     new Date(devis.validUntil),
     undefined,
     devis.notes,
+    devis.siteReference,
   );
 }
 
@@ -1372,5 +1391,6 @@ export async function generateInvoicePDF(
     new Date(invoice.dueDate),
     invoice.devis?.number,
     invoice.notes,
+    invoice.siteReference,
   );
 }

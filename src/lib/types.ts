@@ -43,6 +43,7 @@ export interface DevisItem {
 }
 
 export interface Devis {
+  siteReference?: string | null;
   id: string;
   number: string;
   clientId: string;
@@ -67,6 +68,7 @@ export interface InvoiceItem {
 }
 
 export interface Invoice {
+  siteReference?: string | null;
   id: string;
   number: string;
   clientId: string;

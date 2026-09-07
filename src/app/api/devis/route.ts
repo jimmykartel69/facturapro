@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
+import { siteReferenceSchema } from '@/lib/site-reference';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.OR = [
         { number: { contains: search } },
+        { siteReference: { contains: search, mode: 'insensitive' } },
         { client: { name: { contains: search } } },
         { client: { company: { contains: search } } },
       ];
@@ -60,6 +62,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const referenceResult = siteReferenceSchema.safeParse(body.siteReference);
+    if (!referenceResult.success) {
+      return NextResponse.json(
+        { error: 'La référence du chantier doit être un texte de 120 caractères maximum, sur une seule ligne.' },
+        { status: 400 },
+      );
+    }
+
     const { clientId, items, notes, globalDiscount, validUntil, status } = body;
 
     if (!clientId || !items || items.length === 0) {
@@ -108,6 +118,7 @@ export async function POST(request: NextRequest) {
           status: status || 'draft',
           validUntil: validDate,
           notes: notes || null,
+          siteReference: referenceResult.data ?? null,
           globalDiscount: discount,
           items: {
             create: items.map((item: { designation: string; description?: string; quantity: number; unit: string; unitPrice: number; tvaRate: number }) => ({

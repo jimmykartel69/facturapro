@@ -83,6 +83,7 @@ model Client {
 }
 
 model Devis {
+  siteReference String? @db.VarChar(120)
   id          String   @id @default(cuid())
   userId      String
   number      String
@@ -122,6 +123,7 @@ model DevisItem {
 }
 
 model Invoice {
+  siteReference String? @db.VarChar(120)
   id          String   @id @default(cuid())
   userId      String
   number      String

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
+import { siteReferenceSchema } from '@/lib/site-reference';
 
 export async function GET(
   request: NextRequest,
@@ -45,6 +46,14 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
+    const referenceResult = siteReferenceSchema.safeParse(body.siteReference);
+    if (!referenceResult.success) {
+      return NextResponse.json(
+        { error: 'La référence du chantier doit être un texte de 120 caractères maximum, sur une seule ligne.' },
+        { status: 400 },
+      );
+    }
+
 
     const existing = await db.devis.findFirst({
       where: { id, userId: user.id },
@@ -54,21 +63,18 @@ export async function PUT(
       return NextResponse.json({ error: 'Devis non trouvé' }, { status: 404 });
     }
 
-    // If updating items, delete old ones first
-    if (body.items) {
-      await db.devisItem.deleteMany({ where: { devisId: id } });
-    }
-
     const devis = await db.devis.update({
       where: { id },
       data: {
         ...(body.clientId !== undefined && { clientId: body.clientId }),
         ...(body.status !== undefined && { status: body.status }),
         ...(body.validUntil !== undefined && { validUntil: new Date(body.validUntil) }),
+        ...(body.siteReference !== undefined && { siteReference: referenceResult.data ?? null }),
         ...(body.notes !== undefined && { notes: body.notes }),
         ...(body.globalDiscount !== undefined && { globalDiscount: body.globalDiscount }),
         ...(body.items && {
           items: {
+            deleteMany: {},
             create: body.items.map((item: { designation: string; description?: string; quantity: number; unit: string; unitPrice: number; tvaRate: number }) => ({
               designation: item.designation,
               description: item.description || null,

@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
           issueDate: new Date(),
           dueDate,
           notes: devis.notes,
+          siteReference: devis.siteReference,
           globalDiscount: devis.globalDiscount,
           items: {
             create: devis.items.map((item) => ({
