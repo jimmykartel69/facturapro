@@ -508,7 +508,7 @@ function drawFooter(ctx: Ctx): void {
   if (clean(company.siret)) legalParts.push(`SIRET ${clean(company.siret)}`);
   if (clean(company.rcsNumber)) legalParts.push(`RCS ${clean(company.rcsNumber)}`);
   if (ctx.ae) {
-    legalParts.push('TVA non applicable - art. 293 B CGI');
+    legalParts.push('TVA non applicable, art. L. 223-3 du CIBS.');
   } else if (clean(company.tvaNumber)) {
     legalParts.push(`TVA intracom ${clean(company.tvaNumber)}`);
   }
@@ -593,7 +593,7 @@ function drawHeader(ctx: Ctx): void {
   if (legal) identityLines.push(legal);
 
   if (ctx.ae) {
-    identityLines.push('TVA non applicable - article 293 B du CGI');
+    identityLines.push('TVA non applicable, art. L. 223-3 du CIBS.');
   } else if (clean(company.tvaNumber)) {
     identityLines.push(`TVA intracommunautaire : ${clean(company.tvaNumber)}`);
   }
@@ -931,7 +931,7 @@ function drawTotals(ctx: Ctx): void {
     }
     rows.push({ label: 'Total TVA', value: fmtCur(totals.totalVat) });
   } else {
-    rows.push({ label: 'TVA', value: 'Non applicable (art. 293 B CGI)' });
+    rows.push({ label: 'TVA', value: 'Non applicable' });
   }
 
   if (ctx.docType === 'devis') {
@@ -1050,7 +1050,7 @@ function drawConditions(ctx: Ctx): void {
   }
 
   if (ctx.ae) {
-    lines.push('TVA non applicable, article 293 B du CGI.');
+    lines.push('TVA non applicable, art. L. 223-3 du CIBS.');
   }
 
   const pad = 12;
