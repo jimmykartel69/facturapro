@@ -51,6 +51,27 @@ model User {
   bankName         String?
   accountHolder    String?
 
+  // Paramètres documentaires / conformité
+  depositEnabled         Boolean @default(true)
+  depositThreshold       Float   @default(1000)
+  depositRate            Float   @default(30)
+  quotePaymentText       String  @default("Paiement à réception de facture.")
+  invoicePaymentText     String  @default("Paiement à réception de facture.")
+  paymentMethod          String  @default("Virement bancaire")
+  vatRegime              String  @default("unspecified")
+  vatExemptionText       String  @default("TVA non applicable, article L. 223-3 du Code des impositions sur les biens et services (CIBS).")
+  showCgv                Boolean @default(false)
+  customCgvB2c           String?
+  customCgvB2b           String?
+  mediatorName           String?
+  mediatorAddress        String?
+  mediatorWebsite        String?
+  insuranceEnabled       Boolean @default(false)
+  insurerName            String?
+  insurancePolicyNumber  String?
+  insuranceActivities    String?
+  insuranceCoverageArea  String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -60,9 +81,10 @@ model User {
 }
 
 model Client {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
+  id         String   @id @default(cuid())
+  userId     String
+  clientType String?
+  name       String
   company   String?
   email     String
   phone     String?

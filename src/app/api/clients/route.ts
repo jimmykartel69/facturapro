@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
+        clientType: true,
         name: true,
         company: true,
         email: true,
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, company, email, phone, address, addressComplement, postalCode, city, siret, notes } = body;
+    const { clientType, name, company, email, phone, address, addressComplement, postalCode, city, siret, notes } = body;
 
     if (!name || !email) {
       return NextResponse.json(
@@ -68,9 +69,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedClientType = clientType === 'business' ? 'business' : 'consumer';
+
     const client = await db.client.create({
       data: {
         userId: user.id,
+        clientType: normalizedClientType,
         name,
         company: company || null,
         email,

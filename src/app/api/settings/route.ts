@@ -59,6 +59,30 @@ export async function PUT(request: NextRequest) {
         ...(body.bic !== undefined && { bic: body.bic }),
         ...(body.bankName !== undefined && { bankName: body.bankName }),
         ...(body.accountHolder !== undefined && { accountHolder: body.accountHolder }),
+
+        ...(body.depositEnabled !== undefined && { depositEnabled: Boolean(body.depositEnabled) }),
+        ...(body.depositThreshold !== undefined && { depositThreshold: Number(body.depositThreshold) }),
+        ...(body.depositRate !== undefined && { depositRate: Number(body.depositRate) }),
+        ...(body.quotePaymentText !== undefined && { quotePaymentText: body.quotePaymentText }),
+        ...(body.invoicePaymentText !== undefined && { invoicePaymentText: body.invoicePaymentText }),
+        ...(body.paymentMethod !== undefined && { paymentMethod: body.paymentMethod }),
+        ...(body.vatRegime !== undefined && {
+          vatRegime: ['unspecified', 'franchise', 'standard'].includes(body.vatRegime)
+            ? body.vatRegime
+            : 'unspecified',
+        }),
+        ...(body.vatExemptionText !== undefined && { vatExemptionText: body.vatExemptionText }),
+        ...(body.showCgv !== undefined && { showCgv: Boolean(body.showCgv) }),
+        ...(body.customCgvB2c !== undefined && { customCgvB2c: body.customCgvB2c }),
+        ...(body.customCgvB2b !== undefined && { customCgvB2b: body.customCgvB2b }),
+        ...(body.mediatorName !== undefined && { mediatorName: body.mediatorName }),
+        ...(body.mediatorAddress !== undefined && { mediatorAddress: body.mediatorAddress }),
+        ...(body.mediatorWebsite !== undefined && { mediatorWebsite: body.mediatorWebsite }),
+        ...(body.insuranceEnabled !== undefined && { insuranceEnabled: Boolean(body.insuranceEnabled) }),
+        ...(body.insurerName !== undefined && { insurerName: body.insurerName }),
+        ...(body.insurancePolicyNumber !== undefined && { insurancePolicyNumber: body.insurancePolicyNumber }),
+        ...(body.insuranceActivities !== undefined && { insuranceActivities: body.insuranceActivities }),
+        ...(body.insuranceCoverageArea !== undefined && { insuranceCoverageArea: body.insuranceCoverageArea }),
       },
     });
 

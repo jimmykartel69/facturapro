@@ -7,6 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -32,6 +39,7 @@ export function ClientForm({ editingClientId }: ClientFormProps) {
   const existing = editingClientId ? clients.find((c) => c.id === editingClientId) : null;
 
   const emptyForm = {
+    clientType: 'consumer',
     name: '',
     company: '',
     email: '',
@@ -46,6 +54,7 @@ export function ClientForm({ editingClientId }: ClientFormProps) {
 
   const [form, setForm] = useState(() => existing
     ? {
+        clientType: existing.clientType || 'unspecified',
         name: existing.name || '',
         company: existing.company || '',
         email: existing.email || '',
@@ -84,6 +93,26 @@ export function ClientForm({ editingClientId }: ClientFormProps) {
           <DialogTitle>{editingClientId ? 'Modifier le client' : 'Nouveau client'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Type de client *</Label>
+            <Select
+              value={form.clientType}
+              onValueChange={(value) => setForm((f) => ({ ...f, clientType: value }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unspecified">À définir</SelectItem>
+                <SelectItem value="consumer">Particulier</SelectItem>
+                <SelectItem value="business">Professionnel / entreprise</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Ce choix servira à appliquer les bonnes mentions et CGV sur les documents.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="client-name">Nom *</Label>

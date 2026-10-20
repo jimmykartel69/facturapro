@@ -1,4 +1,4 @@
-export type Page = 'dashboard' | 'clients' | 'devis' | 'invoices' | 'payments' | 'settings';
+export type Page = 'dashboard' | 'clients' | 'devis' | 'invoices' | 'payments' | 'document-settings' | 'settings';
 export type DevisStatus = 'draft' | 'sent' | 'accepted' | 'refused' | 'converted';
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 
@@ -14,6 +14,7 @@ export interface User {
 
 export interface Client {
   id: string;
+  clientType?: 'consumer' | 'business' | null;
   name: string;
   company?: string | null;
   email: string;
@@ -147,5 +148,26 @@ export interface Settings {
   bic?: string | null;
   bankName?: string | null;
   accountHolder?: string | null;
+
+  depositEnabled?: boolean;
+  depositThreshold?: number;
+  depositRate?: number;
+  quotePaymentText?: string;
+  invoicePaymentText?: string;
+  paymentMethod?: string;
+  vatRegime?: 'unspecified' | 'franchise' | 'standard';
+  vatExemptionText?: string;
+  showCgv?: boolean;
+  customCgvB2c?: string | null;
+  customCgvB2b?: string | null;
+  mediatorName?: string | null;
+  mediatorAddress?: string | null;
+  mediatorWebsite?: string | null;
+  insuranceEnabled?: boolean;
+  insurerName?: string | null;
+  insurancePolicyNumber?: string | null;
+  insuranceActivities?: string | null;
+  insuranceCoverageArea?: string | null;
+
   [key: string]: unknown;
 }

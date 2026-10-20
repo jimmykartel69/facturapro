@@ -21,6 +21,7 @@ const navItems: { icon: React.ElementType; label: string; page: Page }[] = [
   { icon: Users, label: 'Clients', page: 'clients' },
   { icon: FileText, label: 'Devis', page: 'devis' },
   { icon: Receipt, label: 'Factures', page: 'invoices' },
+  { icon: FileText, label: 'Paramètres documents', page: 'document-settings' },
   { icon: Settings, label: 'Paramètres', page: 'settings' },
 ];
 

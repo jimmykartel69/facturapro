@@ -18,6 +18,7 @@ import { DevisList } from '@/components/facturapro/devis-list';
 import { DevisDetail } from '@/components/facturapro/devis-detail';
 import { DevisForm } from '@/components/facturapro/devis-form';
 import { SettingsPage } from '@/components/facturapro/settings';
+import { DocumentSettingsPage } from '@/components/facturapro/document-settings';
 import { cn } from '@/lib/utils';
 
 // --- Error Boundary to catch rendering crashes ---
@@ -200,6 +201,8 @@ function AuthenticatedApp() {
         return selectedDevisId ? <DevisDetail /> : <DevisList />;
       case 'invoices':
         return selectedInvoiceId ? <InvoiceDetail /> : <InvoiceList />;
+      case 'document-settings':
+        return <DocumentSettingsPage />;
       case 'settings':
         return <SettingsPage />;
       default:

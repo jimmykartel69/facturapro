@@ -65,6 +65,12 @@ export async function PUT(
     const client = await db.client.update({
       where: { id },
       data: {
+        clientType:
+          body.clientType === 'business'
+            ? 'business'
+            : body.clientType === 'consumer'
+              ? 'consumer'
+              : existing.clientType,
         name: body.name ?? existing.name,
         company: body.company ?? existing.company,
         email: body.email ?? existing.email,
