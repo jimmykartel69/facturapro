@@ -35,7 +35,7 @@ export function DocumentSettingsPage() {
     paymentMethod: 'Virement bancaire',
     vatRegime: 'unspecified',
     vatExemptionText: DEFAULT_VAT_TEXT,
-    showCgv: true,
+    showCgv: false,
     customCgvB2c: '',
     customCgvB2b: '',
     mediatorName: '',
@@ -63,7 +63,7 @@ export function DocumentSettingsPage() {
       paymentMethod: settings.paymentMethod || 'Virement bancaire',
       vatRegime: settings.vatRegime || 'unspecified',
       vatExemptionText: settings.vatExemptionText || DEFAULT_VAT_TEXT,
-      showCgv: settings.showCgv ?? true,
+      showCgv: settings.showCgv ?? false,
       customCgvB2c: settings.customCgvB2c || '',
       customCgvB2b: settings.customCgvB2b || '',
       mediatorName: settings.mediatorName || '',
@@ -136,7 +136,8 @@ export function DocumentSettingsPage() {
   }
 
   const b2cIncomplete =
-    form.showCgv && (!form.mediatorName.trim() || !form.mediatorWebsite.trim());
+    form.showCgv &&
+    (!form.customCgvB2c.trim() || !form.mediatorName.trim() || !form.mediatorWebsite.trim());
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -155,7 +156,7 @@ export function DocumentSettingsPage() {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Paramètres B2C incomplets</AlertTitle>
           <AlertDescription>
-            Renseigne le médiateur de la consommation avant d’utiliser automatiquement des CGV pour un particulier.
+            Pour joindre des CGV à un particulier, renseigne le texte B2C ainsi que le médiateur de la consommation.
           </AlertDescription>
         </Alert>
       )}
@@ -315,7 +316,7 @@ export function DocumentSettingsPage() {
               rows={8}
               value={form.customCgvB2c}
               onChange={(e) => setField('customCgvB2c', e.target.value)}
-              placeholder="Laisser vide pour utiliser le modèle intégré."
+              placeholder="Aucun modèle B2C automatique : renseigner ici les CGV destinées aux particuliers."
             />
           </div>
 

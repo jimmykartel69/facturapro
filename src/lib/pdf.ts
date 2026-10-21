@@ -351,15 +351,6 @@ const NEOVOLT_CGV_SECTIONS: CgvSection[] = [
   }
 ];
 
-const NEOVOLT_CGV_CLOSING = [
-  "NEOVOLT",
-  "SIRET : 788 947 836 00037",
-  "Tél. : +33 6 68 56 99 53",
-  "E-mail : contact-nv@neovolt69.fr",
-  "Site : neovolt69.fr",
-  "TVA non applicable, article L. 223-3 du Code des impositions sur les biens et services (CIBS)."
-];
-
 const PW = 595.28;
 const PH = 841.89;
 const MG = 45;
@@ -452,6 +443,20 @@ function depositAmount(ctx: Ctx): number {
 
 function hasBusinessCgv(ctx: Ctx): boolean {
   return ctx.company.showCgv === true && isBusinessClient(ctx.client);
+}
+
+function hasCgvAnnex(ctx: Ctx): boolean {
+  if (ctx.company.showCgv !== true) return false;
+  if (isBusinessClient(ctx.client)) return true;
+  return isConsumerClient(ctx.client) && Boolean(clean(ctx.company.customCgvB2c));
+}
+
+function companyContractName(company: CompanyInfo): string {
+  return companyDisplayName(company);
+}
+
+function resolveCompanyText(ctx: Ctx, value: string): string {
+  return value.replace(/NEOVOLT/gi, companyContractName(ctx.company));
 }
 
 function fmtIban(iban: string): string {
@@ -738,7 +743,13 @@ function drawClientCard(ctx: Ctx): void {
   if (ctx.docType === 'invoice' && ctx.extraDate) {
     rightLines.push(`Échéance : ${fmtDate(ctx.extraDate)}`);
   }
-  if (hasBusinessCgv(ctx)) rightLines.push('CGV professionnelles : annexe jointe');
+  if (hasCgvAnnex(ctx)) {
+    rightLines.push(
+      isBusinessClient(client)
+        ? 'CGV professionnelles : annexe jointe'
+        : 'CGV particuliers : annexe jointe',
+    );
+  }
   if (clean(ctx.devisNumber)) rightLines.push(`Réf. devis : ${clean(ctx.devisNumber)}`);
 
   const leftHeight = 22 + leftLines.length * 10;
@@ -1227,7 +1238,10 @@ function drawSignature(ctx: Ctx): void {
 
 function drawPremiumClosingNote(ctx: Ctx): void {
   const { doc } = ctx;
-  const title = ctx.docType === 'devis' ? 'ENGAGEMENT DE SERVICE NEOVOLT' : 'MERCI POUR VOTRE CONFIANCE';
+  const title =
+    ctx.docType === 'devis'
+      ? `ENGAGEMENT DE SERVICE ${companyContractName(ctx.company).toUpperCase()}`
+      : 'MERCI POUR VOTRE CONFIANCE';
   const lines =
     ctx.docType === 'devis'
       ? [
@@ -1292,27 +1306,165 @@ function startCgvAnnexPage(ctx: Ctx, continuation = false): void {
   ctx.y += referenceHeight + 12;
   if (continuation) return;
 
+  const introParagraphs = NEOVOLT_CGV_INTRO.map((paragraph) => resolveCompanyText(ctx, paragraph));
   const introWidth = CW - 22;
-  const introHeight = 36 + NEOVOLT_CGV_INTRO.reduce(
+  const introHeight = 36 + introParagraphs.reduce(
     (height, paragraph) => height + measureText(ctx.doc, paragraph, introWidth, 'Helvetica', 8.3) + 5,
     0,
   );
+
   ctx.doc.roundedRect(MG, ctx.y, CW, introHeight, 6).fill(C.bgLight);
   ctx.doc.roundedRect(MG, ctx.y, CW, introHeight, 6).strokeColor(C.border).lineWidth(0.6).stroke();
+
   let y = ctx.y + 10;
   ctx.doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.primary);
-  ctx.doc.text('Prestataire : NeoVolt', MG + 11, y, { width: introWidth });
+  ctx.doc.text(`Prestataire : ${companyContractName(ctx.company)}`, MG + 11, y, { width: introWidth });
   y += 16;
-  for (const paragraph of NEOVOLT_CGV_INTRO) {
+
+  for (const paragraph of introParagraphs) {
     const height = measureText(ctx.doc, paragraph, introWidth, 'Helvetica', 8.3);
     ctx.doc.fillColor(C.textSec).text(paragraph, MG + 11, y, { width: introWidth });
     y += height + 5;
   }
+
   ctx.y += introHeight + 12;
 }
 
+function contractualInfoLines(ctx: Ctx): string[] {
+  const lines: string[] = [];
+
+  if (isConsumerClient(ctx.client) && clean(ctx.company.mediatorName)) {
+    const mediator = [
+      clean(ctx.company.mediatorName),
+      clean(ctx.company.mediatorAddress),
+      clean(ctx.company.mediatorWebsite),
+    ].filter(Boolean).join(' - ');
+
+    if (mediator) lines.push(`Médiation de la consommation : ${mediator}.`);
+  }
+
+  if (ctx.company.insuranceEnabled === true) {
+    const insurance = [
+      clean(ctx.company.insurerName) ? `Assureur : ${clean(ctx.company.insurerName)}` : '',
+      clean(ctx.company.insurancePolicyNumber) ? `N° de contrat : ${clean(ctx.company.insurancePolicyNumber)}` : '',
+      clean(ctx.company.insuranceActivities) ? `Activités garanties : ${clean(ctx.company.insuranceActivities)}` : '',
+      clean(ctx.company.insuranceCoverageArea) ? `Zone de couverture : ${clean(ctx.company.insuranceCoverageArea)}` : '',
+    ].filter(Boolean);
+
+    if (insurance.length > 0) {
+      lines.push(`Assurance professionnelle : ${insurance.join(' - ')}.`);
+    }
+  }
+
+  return lines;
+}
+
+function dynamicClosingLines(ctx: Ctx): string[] {
+  return [
+    companyContractName(ctx.company),
+    clean(ctx.company.siret) ? `SIRET : ${clean(ctx.company.siret)}` : '',
+    clean(ctx.company.phone) ? `Tél. : ${clean(ctx.company.phone)}` : '',
+    clean(ctx.company.professionalEmail) ? `E-mail : ${clean(ctx.company.professionalEmail)}` : '',
+    clean(ctx.company.website) ? `Site : ${clean(ctx.company.website)}` : '',
+    ctx.ae
+      ? vatExemptionText(ctx.company)
+      : clean(ctx.company.tvaNumber)
+        ? `TVA intracommunautaire : ${clean(ctx.company.tvaNumber)}`
+        : '',
+    ...contractualInfoLines(ctx),
+  ].filter(Boolean);
+}
+
+function drawCustomCgvAnnex(ctx: Ctx, title: string, content: string): void {
+  const paragraphs = content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (paragraphs.length === 0) return;
+
+  drawFooter(ctx);
+  ctx.doc.addPage();
+  ctx.pageNum += 1;
+  drawAccentBar(ctx);
+
+  ctx.doc.font('Helvetica-Bold').fontSize(10).fillColor(C.primary);
+  ctx.doc.text(title, MG, 18, { width: CW });
+
+  ctx.y = 38;
+  const reference = `${ctx.docType === 'devis' ? 'Devis' : 'Facture'} n° ${ctx.docNumber}`;
+  ctx.doc.font('Helvetica').fontSize(8).fillColor(C.textSec);
+  ctx.doc.text(reference, MG, ctx.y, { width: CW });
+  ctx.y += 18;
+
+  const writeParagraph = (paragraph: string): void => {
+    const resolved = resolveCompanyText(ctx, paragraph);
+    const height = measureText(ctx.doc, resolved, CW, 'Helvetica', 8.3) + 7;
+
+    if (ctx.y + height > CONTENT_BOTTOM) {
+      drawFooter(ctx);
+      ctx.doc.addPage();
+      ctx.pageNum += 1;
+      drawAccentBar(ctx);
+      ctx.y = 26;
+    }
+
+    ctx.doc.font('Helvetica').fontSize(8.3).fillColor(C.textSec);
+    ctx.doc.text(resolved, MG, ctx.y, { width: CW });
+    ctx.y += height;
+  };
+
+  for (const paragraph of paragraphs) writeParagraph(paragraph);
+
+  const infoLines = contractualInfoLines(ctx);
+  if (infoLines.length > 0) {
+    ctx.y += 6;
+    const heading = 'INFORMATIONS CONTRACTUELLES';
+    const headingHeight = measureText(ctx.doc, heading, CW, 'Helvetica-Bold', 8.8) + 8;
+
+    if (ctx.y + headingHeight > CONTENT_BOTTOM) {
+      drawFooter(ctx);
+      ctx.doc.addPage();
+      ctx.pageNum += 1;
+      drawAccentBar(ctx);
+      ctx.y = 26;
+    }
+
+    ctx.doc.font('Helvetica-Bold').fontSize(8.8).fillColor(C.accent);
+    ctx.doc.text(heading, MG, ctx.y, { width: CW });
+    ctx.y += headingHeight;
+
+    for (const line of infoLines) writeParagraph(line);
+  }
+}
+
 function drawCgvAnnex(ctx: Ctx): void {
-  if (!hasBusinessCgv(ctx)) return;
+  if (!hasCgvAnnex(ctx)) return;
+
+  if (isConsumerClient(ctx.client)) {
+    const customB2c = clean(ctx.company.customCgvB2c);
+    if (!customB2c) return;
+
+    drawCustomCgvAnnex(
+      ctx,
+      'ANNEXE - CONDITIONS GÉNÉRALES DE VENTE - CLIENT PARTICULIER',
+      customB2c,
+    );
+    return;
+  }
+
+  if (!isBusinessClient(ctx.client)) return;
+
+  const customB2b = clean(ctx.company.customCgvB2b);
+  if (customB2b) {
+    drawCustomCgvAnnex(
+      ctx,
+      'ANNEXE - CONDITIONS GÉNÉRALES DE VENTE - CLIENT PROFESSIONNEL',
+      customB2b,
+    );
+    return;
+  }
+
   const { doc } = ctx;
   const padX = 11;
   const textWidth = CW - padX * 2;
@@ -1324,36 +1476,47 @@ function drawCgvAnnex(ctx: Ctx): void {
   };
 
   for (const section of NEOVOLT_CGV_SECTIONS) {
-    const blockHeight = estimateCgvSectionHeight(doc, section, textWidth);
+    const resolvedSection: CgvSection = {
+      title: section.title,
+      paragraphs: section.paragraphs.map((paragraph) => resolveCompanyText(ctx, paragraph)),
+    };
+
+    const blockHeight = estimateCgvSectionHeight(doc, resolvedSection, textWidth);
     ensureCgvSpace(blockHeight + 8);
+
     doc.roundedRect(MG, ctx.y, CW, blockHeight, 5).fill(C.white);
     doc.roundedRect(MG, ctx.y, CW, blockHeight, 5).strokeColor(C.border).lineWidth(0.45).stroke();
+
     let y = ctx.y + 10;
     doc.font('Helvetica-Bold').fontSize(9.2).fillColor(C.accent);
-    doc.text(section.title, MG + padX, y, { width: textWidth });
-    y += measureText(doc, section.title, textWidth, 'Helvetica-Bold', 9.2) + 6;
+    doc.text(resolvedSection.title, MG + padX, y, { width: textWidth });
+    y += measureText(doc, resolvedSection.title, textWidth, 'Helvetica-Bold', 9.2) + 6;
 
-    // Keep paragraphs and list items in their contractual reading order.
     doc.font('Helvetica').fontSize(8.3).fillColor(C.textSec);
-    for (const paragraph of section.paragraphs) {
+    for (const paragraph of resolvedSection.paragraphs) {
       doc.text(paragraph, MG + padX, y, { width: textWidth });
       y += measureText(doc, paragraph, textWidth, 'Helvetica', 8.3) + 4;
     }
+
     ctx.y += blockHeight + 8;
   }
 
-  const closingHeight = 20 + NEOVOLT_CGV_CLOSING.reduce(
+  const closingLines = dynamicClosingLines(ctx);
+  const closingHeight = 20 + closingLines.reduce(
     (height, line) => height + measureText(doc, line, textWidth, 'Helvetica', 8.3) + 4,
     0,
   );
+
   ensureCgvSpace(closingHeight);
   doc.roundedRect(MG, ctx.y, CW, closingHeight, 6).fill(C.bgLight);
+
   let y = ctx.y + 10;
-  for (const line of NEOVOLT_CGV_CLOSING) {
+  for (const line of closingLines) {
     const height = measureText(doc, line, textWidth, 'Helvetica', 8.3);
     doc.fillColor(C.textSec).text(line, MG + padX, y, { width: textWidth });
     y += height + 4;
   }
+
   ctx.y += closingHeight;
 }
 
