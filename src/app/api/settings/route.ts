@@ -45,6 +45,8 @@ export async function PUT(request: NextRequest) {
         ...(body.website !== undefined && { website: body.website }),
         ...(body.directorName !== undefined && { directorName: body.directorName }),
         ...(body.directorTitle !== undefined && { directorTitle: body.directorTitle }),
+	...(body.logoBase64 !== undefined && { logoBase64: body.logoBase64 }),
+	...(body.logoMimeType !== undefined && { logoMimeType: body.logoMimeType }),
         ...(body.accentColor !== undefined && { accentColor: body.accentColor }),
         ...(body.customNotes !== undefined && { customNotes: body.customNotes }),
         ...(body.paymentTerms !== undefined && { paymentTerms: body.paymentTerms }),
