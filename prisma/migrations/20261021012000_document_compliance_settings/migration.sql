@@ -16,7 +16,7 @@ ADD COLUMN     "mediatorWebsite" TEXT,
 ADD COLUMN     "paymentMethod" TEXT NOT NULL DEFAULT 'Virement bancaire',
 ADD COLUMN     "quotePaymentText" TEXT NOT NULL DEFAULT 'Paiement à réception de facture.',
 ADD COLUMN     "showCgv" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "vatExemptionText" TEXT NOT NULL DEFAULT 'TVA non applicable, article L. 223-3 du Code des impositions sur les biens et services (CIBS).',
+ADD COLUMN     "vatExemptionText" TEXT NOT NULL DEFAULT 'TVA non applicable, article 293 B du CGI.',
 ADD COLUMN     "vatRegime" TEXT NOT NULL DEFAULT 'unspecified';
 
 -- AlterTable

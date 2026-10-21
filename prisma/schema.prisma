@@ -59,7 +59,7 @@ model User {
   invoicePaymentText     String  @default("Paiement à réception de facture.")
   paymentMethod          String  @default("Virement bancaire")
   vatRegime              String  @default("unspecified")
-  vatExemptionText       String  @default("TVA non applicable, article L. 223-3 du Code des impositions sur les biens et services (CIBS).")
+  vatExemptionText       String  @default("TVA non applicable, article 293 B du CGI.")
   showCgv                Boolean @default(false)
   customCgvB2c           String?
   customCgvB2b           String?

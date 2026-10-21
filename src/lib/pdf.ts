@@ -33,6 +33,25 @@ interface CompanyInfo {
   customNotes?: string;
   directorName?: string | null;
   directorTitle?: string | null;
+  depositEnabled?: boolean;
+  depositThreshold?: number;
+  depositRate?: number;
+  quotePaymentText?: string | null;
+  invoicePaymentText?: string | null;
+  paymentMethod?: string | null;
+  vatRegime?: string | null;
+  vatExemptionText?: string | null;
+  showCgv?: boolean;
+  customCgvB2c?: string | null;
+  customCgvB2b?: string | null;
+  mediatorName?: string | null;
+  mediatorAddress?: string | null;
+  mediatorWebsite?: string | null;
+  insuranceEnabled?: boolean;
+  insurerName?: string | null;
+  insurancePolicyNumber?: string | null;
+  insuranceActivities?: string | null;
+  insuranceCoverageArea?: string | null;
 }
 
 interface TotalsBreakdown {
@@ -123,7 +142,7 @@ const NEOVOLT_CGV_SECTIONS: CgvSection[] = [
     "title": "3. Prix et modalités de paiement",
     "paragraphs": [
       "Les prix applicables sont ceux figurant au devis accepté.",
-      "Sauf conditions particulières différentes indiquées sur le devis, un acompte de 30 % pourra être demandé à la commande pour toute prestation d'un montant supérieur à 500 €.",
+      "Lorsqu'un acompte est prévu sur le devis, son taux, son montant et ses conditions d'exigibilité sont ceux indiqués sur le devis accepté.",
       "Lorsque le devis prévoit expressément un paiement intégral à réception de facture, cette condition prévaut sur l'acompte prévu ci-dessus.",
       "Le solde est payable selon l'échéance indiquée sur la facture, par virement bancaire ou tout autre moyen accepté par NeoVolt.",
       "Aucun escompte n'est accordé pour paiement anticipé, sauf accord écrit contraire."
@@ -307,7 +326,7 @@ const NEOVOLT_CGV_SECTIONS: CgvSection[] = [
     "paragraphs": [
       "NeoVolt maintient les assurances professionnelles correspondant aux activités et travaux effectivement déclarés à son assureur.",
       "Lorsque la nature des travaux rend obligatoire une assurance de responsabilité décennale, les justificatifs prévus par la réglementation sont communiqués conformément aux dispositions applicables.",
-      "Assureur : À venir\nN° de contrat : À venir\nActivités garanties : À venir\nZone géographique de couverture : À venir",
+      "Les informations d'assurance applicables figurent sur les documents contractuels lorsqu'elles sont requises et correspondent exclusivement aux garanties effectivement souscrites.",
       "Aucune mention figurant dans les présentes CGV ne saurait étendre les garanties de l'assureur au-delà des activités et conditions effectivement prévues au contrat d'assurance."
     ]
   },
@@ -396,15 +415,43 @@ function fmtPercent(value: number): string {
   return normalizePdfText(new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value));
 }
 
-function isAE(legalForm?: string | null): boolean {
-  const lf = clean(legalForm).toLowerCase();
-  if (!lf) return false;
-  return (
-    lf.includes('auto-entrepreneur') ||
-    lf.includes('auto entrepreneur') ||
-    lf.includes('micro-entreprise') ||
-    lf.includes('micro entreprise')
-  );
+function isVatExempt(company: CompanyInfo): boolean {
+  return clean(company.vatRegime).toLowerCase() === 'franchise';
+}
+
+function vatExemptionText(company: CompanyInfo): string {
+  return clean(company.vatExemptionText) || 'TVA non applicable, article 293 B du CGI.';
+}
+
+function isBusinessClient(client: Client): boolean {
+  return clean(client.clientType).toLowerCase() === 'business';
+}
+
+function isConsumerClient(client: Client): boolean {
+  return clean(client.clientType).toLowerCase() === 'consumer';
+}
+
+function depositRate(company: CompanyInfo): number {
+  return clamp(toNum(company.depositRate), 0, 100);
+}
+
+function depositThreshold(company: CompanyInfo): number {
+  return Math.max(0, toNum(company.depositThreshold));
+}
+
+function depositApplies(ctx: Ctx): boolean {
+  return ctx.docType === 'devis'
+    && ctx.company.depositEnabled === true
+    && depositRate(ctx.company) > 0
+    && ctx.totals.totalTtc > depositThreshold(ctx.company);
+}
+
+function depositAmount(ctx: Ctx): number {
+  return ctx.totals.totalTtc * (depositRate(ctx.company) / 100);
+}
+
+function hasBusinessCgv(ctx: Ctx): boolean {
+  return ctx.company.showCgv === true && isBusinessClient(ctx.client);
 }
 
 function fmtIban(iban: string): string {
@@ -509,7 +556,7 @@ function drawFooter(ctx: Ctx): void {
   if (clean(company.siret)) legalParts.push(`SIRET ${clean(company.siret)}`);
   if (clean(company.rcsNumber)) legalParts.push(`RCS ${clean(company.rcsNumber)}`);
   if (ctx.ae) {
-    legalParts.push('TVA non applicable, art. L. 223-3 du CIBS.');
+    legalParts.push(vatExemptionText(company));
   } else if (clean(company.tvaNumber)) {
     legalParts.push(`TVA intracom ${clean(company.tvaNumber)}`);
   }
@@ -594,7 +641,7 @@ function drawHeader(ctx: Ctx): void {
   if (legal) identityLines.push(legal);
 
   if (ctx.ae) {
-    identityLines.push('TVA non applicable, art. L. 223-3 du CIBS.');
+    identityLines.push(vatExemptionText(company));
   } else if (clean(company.tvaNumber)) {
     identityLines.push(`TVA intracommunautaire : ${clean(company.tvaNumber)}`);
   }
@@ -626,10 +673,17 @@ function drawHeader(ctx: Ctx): void {
     rows.push({ key: 'Réf. devis', value: clean(ctx.devisNumber) });
   }
 
-  rows.push({
-    key: ctx.docType === 'devis' ? 'Acompte' : 'Paiement',
-    value: ctx.docType === 'devis' ? '30 % à la commande' : 'Virement bancaire',
-  });
+  if (depositApplies(ctx)) {
+    rows.push({
+      key: 'Acompte',
+      value: `${fmtPercent(depositRate(company))} % à la commande`,
+    });
+  } else {
+    rows.push({
+      key: 'Paiement',
+      value: clean(company.paymentMethod) || 'Virement bancaire',
+    });
+  }
 
   const cardH = 28 + rows.length * 16 + cardPad;
   doc.roundedRect(rx, cardY, rw, cardH, 8).fill(C.bgLight);
@@ -667,17 +721,24 @@ function drawClientCard(ctx: Ctx): void {
   if (clean(client.phone)) leftLines.push(clean(client.phone));
 
   const rightLines: string[] = [];
-  rightLines.push(`Conditions : ${clean(company.paymentTerms) || '30 jours'}`);
+  const paymentText = ctx.docType === 'devis'
+    ? clean(company.quotePaymentText)
+    : clean(company.invoicePaymentText);
+
+  if (paymentText) rightLines.push(`Conditions : ${paymentText}`);
   rightLines.push(`Montant TTC : ${fmtCur(ctx.totals.totalTtc)}`);
-  rightLines.push('Mode de règlement : virement bancaire');
+  rightLines.push(`Mode de règlement : ${clean(company.paymentMethod) || 'Virement bancaire'}`);
+
   if (ctx.docType === 'devis' && ctx.extraDate) {
     rightLines.push(`Valide jusqu'au : ${fmtDate(ctx.extraDate)}`);
-    rightLines.push('Acompte à la commande : 30 %');
+  }
+  if (depositApplies(ctx)) {
+    rightLines.push(`Acompte : ${fmtPercent(depositRate(company))} % (${fmtCur(depositAmount(ctx))})`);
   }
   if (ctx.docType === 'invoice' && ctx.extraDate) {
     rightLines.push(`Échéance : ${fmtDate(ctx.extraDate)}`);
   }
-  rightLines.push('CGV : annexe contractuelle jointe');
+  if (hasBusinessCgv(ctx)) rightLines.push('CGV professionnelles : annexe jointe');
   if (clean(ctx.devisNumber)) rightLines.push(`Réf. devis : ${clean(ctx.devisNumber)}`);
 
   const leftHeight = 22 + leftLines.length * 10;
@@ -949,8 +1010,11 @@ function drawTotals(ctx: Ctx): void {
     rows.push({ label: 'TVA', value: 'Non applicable' });
   }
 
-  if (ctx.docType === 'devis') {
-    rows.push({ label: 'Acompte conseillé (30%)', value: fmtCur(totals.totalTtc * 0.3) });
+  if (depositApplies(ctx)) {
+    rows.push({
+      label: `Acompte (${fmtPercent(depositRate(ctx.company))}%)`,
+      value: fmtCur(depositAmount(ctx)),
+    });
   }
 
   const boxW = CW * 0.46;
@@ -1035,56 +1099,74 @@ function drawIbanBlock(ctx: Ctx): void {
 }
 
 function drawConditions(ctx: Ctx): void {
-  const { doc, company } = ctx;
-  const terms = clean(company.paymentTerms) || '30 jours';
+  const { doc, company, client } = ctx;
   const earlyDiscount = toNum(company.earlyDiscount);
   const earlyDiscountDays = Math.round(toNum(company.earlyDiscountDays));
-  const latePenaltyRate = toNum(company.latePenaltyRate) > 0 ? toNum(company.latePenaltyRate) : 3;
-
   const lines: string[] = [];
+
   if (ctx.docType === 'devis') {
-    if (ctx.extraDate) {
-      lines.push(`Validité du devis : offre valable jusqu'au ${fmtDate(ctx.extraDate)}.`);
+    if (ctx.extraDate) lines.push(`Validité du devis : offre valable jusqu'au ${fmtDate(ctx.extraDate)}.`);
+    lines.push(`Règlement : ${clean(company.quotePaymentText) || 'Paiement à réception de facture.'}`);
+
+    if (depositApplies(ctx)) {
+      lines.push(`Acompte : ${fmtPercent(depositRate(company))} % à l'acceptation, soit ${fmtCur(depositAmount(ctx))}.`);
     }
-    lines.push(`Règlement : paiement à ${terms} à réception de facture.`);
-    if (earlyDiscount > 0 && earlyDiscountDays > 0) {
-      lines.push(`Escompte : ${fmtPercent(earlyDiscount)}% accordé pour paiement sous ${earlyDiscountDays} jours.`);
-    } else {
-      lines.push('Escompte : néant pour paiement anticipé.');
-    }
-    lines.push("L'acceptation du devis se fait par signature précédée de la mention « Bon pour accord ».");
-  } else {
-    lines.push(`Conditions de règlement : paiement à ${terms} à compter de la date d'émission.`);
+
     if (earlyDiscount > 0 && earlyDiscountDays > 0) {
       lines.push(`Escompte : ${fmtPercent(earlyDiscount)}% accordé pour paiement sous ${earlyDiscountDays} jours.`);
     } else {
       lines.push('Escompte pour paiement anticipé : néant.');
     }
-    lines.push(`Pénalités de retard exigibles au taux annuel de ${fmtPercent(latePenaltyRate)}%.`);
-    lines.push('Indemnité forfaitaire pour frais de recouvrement : 40 € (article D441-5 du Code de commerce).');
+
+    lines.push("L'acceptation du devis se fait par signature précédée de la mention « Bon pour accord ».");
+  } else {
+    lines.push(`Conditions de règlement : ${clean(company.invoicePaymentText) || 'Paiement à réception de facture.'}`);
+
+    if (earlyDiscount > 0 && earlyDiscountDays > 0) {
+      lines.push(`Escompte : ${fmtPercent(earlyDiscount)}% accordé pour paiement sous ${earlyDiscountDays} jours.`);
+    } else {
+      lines.push('Escompte pour paiement anticipé : néant.');
+    }
+
+    if (isBusinessClient(client)) {
+      lines.push("Pénalités de retard : taux BCE applicable majoré de 10 points de pourcentage, exigibles sans rappel conformément à l'article L. 441-10 du Code de commerce.");
+      lines.push('Indemnité forfaitaire pour frais de recouvrement : 40 € due uniquement par le client professionnel en retard de paiement (article D. 441-5 du Code de commerce).');
+    }
   }
 
-  if (ctx.ae) {
-    lines.push('TVA non applicable, art. L. 223-3 du CIBS.');
+  if (ctx.ae) lines.push(vatExemptionText(company));
+
+  if (isConsumerClient(client) && clean(company.mediatorName)) {
+    const mediator = [
+      clean(company.mediatorName),
+      clean(company.mediatorAddress),
+      clean(company.mediatorWebsite),
+    ].filter(Boolean).join(' - ');
+    lines.push(`Médiation de la consommation : ${mediator}.`);
+  }
+
+  if (company.insuranceEnabled === true) {
+    const insurance = [
+      clean(company.insurerName) ? `Assureur : ${clean(company.insurerName)}` : '',
+      clean(company.insurancePolicyNumber) ? `Contrat : ${clean(company.insurancePolicyNumber)}` : '',
+      clean(company.insuranceCoverageArea) ? `Zone : ${clean(company.insuranceCoverageArea)}` : '',
+      clean(company.insuranceActivities) ? `Activités : ${clean(company.insuranceActivities)}` : '',
+    ].filter(Boolean);
+    if (insurance.length) lines.push(`Assurance professionnelle : ${insurance.join(' - ')}.`);
   }
 
   const pad = 12;
   const textWidth = CW - pad * 2;
   let h = 26;
-  for (const line of lines) {
-    h += measureText(doc, `- ${line}`, textWidth, 'Helvetica', 7.4) + 3;
-  }
+  for (const line of lines) h += measureText(doc, `- ${line}`, textWidth, 'Helvetica', 7.4) + 3;
 
   ensureSpace(ctx, h + 10);
-
   doc.roundedRect(MG, ctx.y, CW, h, 6).fill(C.bgLight);
   doc.roundedRect(MG, ctx.y, CW, h, 6).strokeColor(C.border).lineWidth(0.6).stroke();
   doc.font('Helvetica-Bold').fontSize(8.2).fillColor(C.primary);
   doc.text(
     ctx.docType === 'devis' ? 'CONDITIONS COMMERCIALES' : 'CONDITIONS DE PAIEMENT ET MENTIONS LÉGALES',
-    MG + pad,
-    ctx.y + 10,
-    { width: textWidth },
+    MG + pad, ctx.y + 10, { width: textWidth },
   );
 
   let y = ctx.y + 24;
@@ -1093,7 +1175,6 @@ function drawConditions(ctx: Ctx): void {
     doc.text(`- ${line}`, MG + pad, y, { width: textWidth });
     y += measureText(doc, `- ${line}`, textWidth, 'Helvetica', 7.4) + 3;
   }
-
   ctx.y += h + 12;
 }
 
@@ -1152,12 +1233,10 @@ function drawPremiumClosingNote(ctx: Ctx): void {
       ? [
           "Ce devis est établi sur la base des informations techniques connues à la date d'émission.",
           'Toute adaptation chantier fera l’objet d’un devis complémentaire validé avant exécution.',
-          'Une annexe CGV complète est jointe au présent document.',
         ]
       : [
           'Cette facture correspond aux prestations réalisées selon devis et validation client.',
           'Pour toute question, notre équipe reste disponible pour un suivi technique et administratif.',
-          'Une annexe CGV complète est jointe au présent document.',
         ];
 
   const pad = 12;
@@ -1233,6 +1312,7 @@ function startCgvAnnexPage(ctx: Ctx, continuation = false): void {
 }
 
 function drawCgvAnnex(ctx: Ctx): void {
+  if (!hasBusinessCgv(ctx)) return;
   const { doc } = ctx;
   const padX = 11;
   const textWidth = CW - padX * 2;
@@ -1304,9 +1384,19 @@ function buildDocument(
     doc.on('error', reject);
 
     try {
+      const clientType = clean(client.clientType).toLowerCase();
+      if (clientType !== 'consumer' && clientType !== 'business') {
+        throw new Error('Type de client à définir avant de générer le PDF.');
+      }
+
+      const vatRegime = clean(company.vatRegime).toLowerCase();
+      if (vatRegime !== 'franchise' && vatRegime !== 'standard') {
+        throw new Error('Régime de TVA à définir dans Paramètres documents avant de générer le PDF.');
+      }
+
       doc.addPage();
 
-      const ae = isAE(company.legalForm);
+      const ae = isVatExempt(company);
       const totals = computeTotals(items, globalDiscount, ae);
 
       const ctx: Ctx = {

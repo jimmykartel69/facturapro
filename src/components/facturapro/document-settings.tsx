@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAppStore } from '@/lib/store';
 
 const DEFAULT_VAT_TEXT =
-  'TVA non applicable, article L. 223-3 du Code des impositions sur les biens et services (CIBS).';
+  'TVA non applicable, article 293 B du CGI.';
 
 export function DocumentSettingsPage() {
   const { settings, fetchSettings, updateSettings } = useAppStore();
