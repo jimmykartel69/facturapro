@@ -725,35 +725,61 @@ function drawClientCard(ctx: Ctx): void {
   if (clean(client.email)) leftLines.push(clean(client.email));
   if (clean(client.phone)) leftLines.push(clean(client.phone));
 
-  const rightLines: string[] = [];
-  const paymentText = ctx.docType === 'devis'
+const rightLines: string[] = [];
+const paymentText =
+  ctx.docType === 'devis'
     ? clean(company.quotePaymentText)
     : clean(company.invoicePaymentText);
 
-  if (paymentText) rightLines.push(`Conditions : ${paymentText}`);
-  rightLines.push(`Montant TTC : ${fmtCur(ctx.totals.totalTtc)}`);
-  rightLines.push(`Mode de règlement : ${clean(company.paymentMethod) || 'Virement bancaire'}`);
+if (paymentText) {
+  rightLines.push(`Conditions : ${paymentText}`);
+}
 
-  if (ctx.docType === 'devis' && ctx.extraDate) {
-    rightLines.push(`Valide jusqu'au : ${fmtDate(ctx.extraDate)}`);
-  }
-  if (depositApplies(ctx)) {
-    rightLines.push(`Acompte : ${fmtPercent(depositRate(company))} % (${fmtCur(depositAmount(ctx))})`);
-  }
-  if (ctx.docType === 'invoice' && ctx.extraDate) {
-    rightLines.push(`Échéance : ${fmtDate(ctx.extraDate)}`);
-  }
-  if (hasCgvAnnex(ctx)) {
-    rightLines.push(
-      isBusinessClient(client)
-        ? 'CGV professionnelles : annexe jointe'
-        : 'CGV particuliers : annexe jointe',
-    );
-  }
-  if (clean(ctx.devisNumber)) rightLines.push(`Réf. devis : ${clean(ctx.devisNumber)}`);
+rightLines.push(`Mode de règlement : ${clean(company.paymentMethod) || 'Virement bancaire'}`);
+
+if (ctx.docType === 'devis' && ctx.extraDate) {
+  rightLines.push(`Valide jusqu'au : ${fmtDate(ctx.extraDate)}`);
+}
+
+if (depositApplies(ctx)) {
+  rightLines.push(`Acompte : ${fmtPercent(depositRate(company))} (${fmtCur(depositAmount(ctx))})`);
+}
+
+rightLines.push(`Montant TTC : ${fmtCur(ctx.totals.totalTtc)}`);
+
+if (ctx.docType === 'invoice' && ctx.extraDate) {
+  rightLines.push(`Échéance : ${fmtDate(ctx.extraDate)}`);
+}
+
+if (hasCgvAnnex(ctx)) {
+  rightLines.push(
+    isBusinessClient(client)
+      ? 'CGV professionnelles : annexe jointe'
+      : 'CGV particuliers : annexe jointe',
+  );
+}
+
+if (clean(ctx.devisNumber)) {
+  rightLines.push(`Réf. devis : ${clean(ctx.devisNumber)}`);
+}
 
   const leftHeight = 22 + leftLines.length * 10;
-  const rightHeight = 22 + rightLines.length * 10;
+  const rightWidth = x + w - split - pad * 2;
+  const rightHeight =
+  22 +
+  rightLines.reduce((total, line) => {
+    const isAmount = line.startsWith('Montant TTC');
+    const font = isAmount ? 'Helvetica-Bold' : 'Helvetica';
+    const fontSize = isAmount ? 8.8 : 7.6;
+
+    return total + measureText(
+      doc,
+      line,
+      rightWidth,
+      font,
+      fontSize,
+    ) + 3;
+  }, 0);
   const h = Math.max(84, 20 + Math.max(leftHeight, rightHeight));
 
   ensureSpace(ctx, h + 10);
@@ -779,15 +805,31 @@ function drawClientCard(ctx: Ctx): void {
   }
 
   let ry = ctx.y + pad + 14;
-  for (const line of rightLines) {
-    const isAmount = line.startsWith('Montant TTC');
-    doc
-      .font(isAmount ? 'Helvetica-Bold' : 'Helvetica')
-      .fontSize(isAmount ? 8.8 : 7.6)
-      .fillColor(isAmount ? C.primary : C.textSec);
-    doc.text(line, split + pad, ry, { width: x + w - split - pad * 2 });
-    ry += isAmount ? 12 : 10;
-  }
+for (const line of rightLines) {
+  const isAmount = line.startsWith('Montant TTC');
+  const font = isAmount ? 'Helvetica-Bold' : 'Helvetica';
+  const fontSize = isAmount ? 8.8 : 7.6;
+  const lineWidth = x + w - split - pad * 2;
+
+  doc
+    .font(font)
+    .fontSize(fontSize)
+    .fillColor(isAmount ? C.primary : C.textSec);
+
+  const lineHeight = measureText(
+    doc,
+    line,
+    lineWidth,
+    font,
+    fontSize,
+  );
+
+  doc.text(line, split + pad, ry, {
+    width: lineWidth,
+  });
+
+  ry += lineHeight + 3;
+}
 
   ctx.y += h + 12;
 }
