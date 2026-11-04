@@ -62,6 +62,6 @@ Prisma migrate deploy désynchronise potentiellement son historique _prisma_migr
 ## Contrôles
 
 - Prisma schema validation : OK avec URL locale fictive sans connexion réseau.
-- npm test : 28/28.
+- npm test : 29/29.
 - Next.js build : OK.
 - Aucune migration exécutée contre Neon.

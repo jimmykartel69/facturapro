@@ -108,3 +108,37 @@ test('second full credit is rejected without using a new number', async () => {
   assert.equal(response.status, 409);
   assert.equal(sequenceChanged, false);
 });
+
+test('first invoice emission stores original PDF inside same transaction', async () => {
+  const sequence = [];
+  let archiveData;
+  const original = { id: 'invoice-1', status: 'draft', devisId: null, clientId: 'client-1' };
+  const updated = { ...original, number: 'FAC-0001', status: 'sent', client: invoice.client, items: invoice.items, devis: null };
+  const db = {
+    invoice: { findFirst: async () => original },
+    $transaction: async callback => callback({
+      invoice: { update: async ({ where, data }) => {
+        assert.equal(where.status, 'draft');
+        assert.equal(data.status, 'sent');
+        sequence.push('update');
+        return updated;
+      } },
+      invoiceArchive: { create: async ({ data }) => { archiveData = data; sequence.push('archive'); } },
+    }),
+  };
+  const invoiceGuards = load('src/lib/invoice-guards.ts');
+  const endpoint = load('src/app/api/invoices/[id]/route.ts', {
+    'next/server': { NextResponse: { json: (body, opt = {}) => ({ status: opt.status ?? 200, body }) } },
+    '@/lib/session': { getCurrentUser: async () => user },
+    '@/lib/db': { db },
+    '@/lib/invoice-guards': invoiceGuards,
+    '@/lib/invoice-archive': { makeInvoiceSnapshot: () => ({ version: 1, invoice: { number: 'FAC-0001' } }) },
+    '@/lib/pdf': { generateInvoicePDF: async () => { sequence.push('render'); return pdf; } },
+  });
+  const result = await endpoint.PUT(request({ status: 'sent' }), params);
+  assert.equal(result.status, 200);
+  assert.deepEqual(sequence, ['update', 'render', 'archive']);
+  assert.equal(archiveData.invoiceId, 'invoice-1');
+  assert.ok(archiveData.pdfBytes instanceof Uint8Array);
+  assert.equal(archiveData.sha256.length, 64);
+});

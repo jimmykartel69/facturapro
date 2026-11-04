@@ -211,19 +211,8 @@ export async function PUT(
       }, { status: 409 });
     }
 
-    // The PDF and all source data are prepared before entering the transaction.
-    // A failed PDF render therefore cannot mark a document as issued.
-    let archive: { pdf: Buffer; snapshot: ReturnType<typeof makeInvoiceSnapshot>; hash: string } | null = null;
-    if (firstIssue) {
-      const original = await getOwnedInvoice(user.id, id);
-      if (!original) return NextResponse.json({ error: 'Facture non trouvée' }, { status: 404 });
-      const pdf = await generateInvoicePDF(original, user);
-      archive = {
-        pdf,
-        snapshot: makeInvoiceSnapshot(original, user),
-        hash: createHash('sha256').update(pdf).digest('hex'),
-      };
-    }
+    // PDF rendering and storage occur inside the invoice update transaction.
+    // A concurrent draft update cannot change the issued document.
 
     const updateData: Prisma.InvoiceUpdateInput = {};
 
@@ -343,14 +332,18 @@ export async function PUT(
         },
       });
 
-      if (archive) {
+      if (firstIssue) {
+        // The invoice row is locked by update() until this transaction commits.
+        // The archived bytes correspond exactly to the row being issued.
+        const pdf = await generateInvoicePDF(updated, user);
+        const snapshot = makeInvoiceSnapshot(updated, user);
         await tx.invoiceArchive.create({
           data: {
             invoiceId: id,
             userId: user.id,
-            pdfBytes: new Uint8Array(archive.pdf),
-            sha256: archive.hash,
-            snapshot: archive.snapshot as unknown as Prisma.InputJsonValue,
+            pdfBytes: new Uint8Array(pdf),
+            sha256: createHash('sha256').update(pdf).digest('hex'),
+            snapshot: snapshot as unknown as Prisma.InputJsonValue,
           },
         });
       }
