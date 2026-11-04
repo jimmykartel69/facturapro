@@ -81,6 +81,7 @@ export interface Invoice {
   globalDiscount: number;
   client: Pick<Client, 'id' | 'name' | 'company'>;
   devis?: { number: string } | null;
+  archive?: { sha256: string; archivedAt: string } | null;
   items: InvoiceItem[];
   createdAt: string;
 }

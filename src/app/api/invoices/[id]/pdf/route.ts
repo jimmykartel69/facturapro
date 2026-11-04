@@ -44,7 +44,13 @@ export async function GET(
       return NextResponse.json({ error: 'Facture non trouvée' }, { status: 404 });
     }
 
-    const pdfBuffer = await generateInvoicePDF(invoice, user);
+    const archived = await db.invoiceArchive.findUnique({
+      where: { invoiceId: invoice.id },
+      select: { pdfBytes: true },
+    });
+    const pdfBuffer = archived
+      ? Buffer.from(archived.pdfBytes)
+      : await generateInvoicePDF(invoice, user);
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
@@ -53,6 +59,7 @@ export async function GET(
         'Content-Disposition': `inline; filename="facture-${invoice.number}.pdf"`,
         'Content-Length': String(pdfBuffer.length),
         'Cache-Control': 'private, no-store, no-cache, must-revalidate',
+        'X-FacturaPro-Archive': archived ? 'immutable' : 'legacy-dynamic',
         Pragma: 'no-cache',
         Expires: '0',
       },

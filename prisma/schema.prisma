@@ -46,6 +46,7 @@ model User {
   invoicePrefix    String   @default("FAC-")
   nextDevisNumber  Int      @default(1)
   nextInvoiceNumber Int     @default(1)
+  nextCreditNoteNumber Int  @default(1)
   iban             String?
   bic              String?
   bankName         String?
@@ -78,6 +79,8 @@ model User {
   clients   Client[]
   devis     Devis[]
   invoices  Invoice[]
+  invoiceArchives InvoiceArchive[]
+  creditNotes CreditNote[]
 }
 
 model Client {
@@ -163,6 +166,8 @@ model Invoice {
   client Client        @relation(fields: [clientId], references: [id])
   devis  Devis?         @relation(fields: [devisId], references: [id], onDelete: SetNull)
   items  InvoiceItem[]
+  archive InvoiceArchive?
+  creditNotes CreditNote[]
 
   @@index([userId])
   @@index([clientId])
@@ -183,4 +188,46 @@ model InvoiceItem {
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
+}
+
+
+// The original PDF and company/client data are frozen at issue time.
+// No update or delete route must be exposed for this archive.
+model InvoiceArchive {
+  invoiceId String @id
+  userId String
+  pdfBytes Bytes
+  sha256 String @db.VarChar(64)
+  snapshot Json
+  archivedAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Issued full credit notes are immutable, numbered separately and linked to
+// the original invoice. Partial credit notes require a separate audited flow.
+model CreditNote {
+  id String @id @default(cuid())
+  userId String
+  invoiceId String
+  number String
+  issueDate DateTime @default(now())
+  reason String
+  amountHtCents Int
+  amountVatCents Int
+  amountTtcCents Int
+  snapshot Json
+  pdfBytes Bytes
+  sha256 String @db.VarChar(64)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([invoiceId])
+  @@unique([userId, number])
 }

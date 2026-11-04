@@ -137,8 +137,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!isInvoiceStatus(statusRaw)) {
-      return NextResponse.json({ error: 'Statut de facture invalide' }, { status: 400 });
+    if (statusRaw !== 'draft') {
+      return NextResponse.json({
+        error: 'Une facture doit être créée en brouillon, puis émise pour figer son PDF.',
+      }, { status: 400 });
     }
 
     if (!Number.isFinite(globalDiscountRaw) || globalDiscountRaw < 0 || globalDiscountRaw > 100) {

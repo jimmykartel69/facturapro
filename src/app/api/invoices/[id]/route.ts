@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { createHash } from 'node:crypto';
 import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
 import { canEditInvoiceDocument, isAllowedInvoiceTransition } from '@/lib/invoice-guards';
+import { makeInvoiceSnapshot } from '@/lib/invoice-archive';
+import { generateInvoicePDF } from '@/lib/pdf';
 
 const ALLOWED_INVOICE_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const;
 type InvoiceStatus = (typeof ALLOWED_INVOICE_STATUSES)[number];
@@ -82,6 +85,7 @@ async function getOwnedInvoice(userId: string, invoiceId: string) {
       client: true,
       items: { orderBy: { createdAt: 'asc' } },
       devis: { select: { id: true, number: true, status: true, clientId: true } },
+      archive: { select: { sha256: true, archivedAt: true } },
     },
   });
 }
@@ -190,6 +194,35 @@ export async function PUT(
           { status: 409 }
         );
       }
+    }
+
+    if (hasStatus && existing.status !== 'draft') {
+      const existingCredits = await db.creditNote.count({ where: { invoiceId: id, userId: user.id } });
+      if (existingCredits > 0 && body.status !== existing.status) {
+        return NextResponse.json({ error: 'Facture intégralement créditée : statut verrouillé.' }, { status: 409 });
+      }
+    }
+
+    const firstIssue = existing.status === 'draft' &&
+      (body.status === 'sent' || body.status === 'paid');
+    if (firstIssue && hasDocumentChanges) {
+      return NextResponse.json({
+        error: 'Modifiez le brouillon avant de procéder à son émission.',
+      }, { status: 409 });
+    }
+
+    // The PDF and all source data are prepared before entering the transaction.
+    // A failed PDF render therefore cannot mark a document as issued.
+    let archive: { pdf: Buffer; snapshot: ReturnType<typeof makeInvoiceSnapshot>; hash: string } | null = null;
+    if (firstIssue) {
+      const original = await getOwnedInvoice(user.id, id);
+      if (!original) return NextResponse.json({ error: 'Facture non trouvée' }, { status: 404 });
+      const pdf = await generateInvoicePDF(original, user);
+      archive = {
+        pdf,
+        snapshot: makeInvoiceSnapshot(original, user),
+        hash: createHash('sha256').update(pdf).digest('hex'),
+      };
     }
 
     const updateData: Prisma.InvoiceUpdateInput = {};
@@ -310,6 +343,17 @@ export async function PUT(
         },
       });
 
+      if (archive) {
+        await tx.invoiceArchive.create({
+          data: {
+            invoiceId: id,
+            userId: user.id,
+            pdfBytes: new Uint8Array(archive.pdf),
+            sha256: archive.hash,
+            snapshot: archive.snapshot as unknown as Prisma.InputJsonValue,
+          },
+        });
+      }
       return updated;
     });
 

@@ -32,6 +32,8 @@ function route(file, db, owner = { id: 'owner' }) {
     '@/lib/site-reference': reference,
     '@/lib/billing-input': billing,
     '@/lib/invoice-guards': invoiceGuards,
+    '@/lib/invoice-archive': { makeInvoiceSnapshot: () => { throw new Error('Unexpected archive operation'); } },
+    '@/lib/pdf': { generateInvoicePDF: async () => { throw new Error('Unexpected PDF operation'); } },
   });
 }
 
@@ -63,6 +65,7 @@ test('sent invoice can be marked paid with status condition', async () => {
   let saved;
   const db = {
     invoice: { findFirst: async () => ({ id: 'invoice-1', status: 'sent' }) },
+    creditNote: { count: async () => 0 },
     $transaction: async (fn) => fn({ invoice: { update: async (value) => { saved = value; return value; } } }),
   };
   const result = await route('src/app/api/invoices/[id]/route.ts', db).PUT(request({ status: 'paid' }), params);

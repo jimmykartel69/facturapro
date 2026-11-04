@@ -34,6 +34,7 @@ import {
 import { useAppStore } from '@/lib/store';
 import { formatDate, formatCurrency, getInvoiceStatusBadge, calculateTotals } from '@/lib/helpers';
 import type { Invoice, InvoiceStatus } from '@/lib/types';
+import { CreditNotesSection } from '@/components/facturapro/credit-notes-section';
 
 export function InvoiceDetail() {
   const {
@@ -157,7 +158,7 @@ export function InvoiceDetail() {
           {invoice.status === 'draft' && (
             <Button variant="outline" size="sm" onClick={() => handleStatus('sent')} disabled={!!actionLoading}>
               {actionLoading === 'sent' ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Send className="w-4 h-4 mr-1.5" />}
-              Envoyer
+              Émettre
             </Button>
           )}
           {(invoice.status === 'sent' || invoice.status === 'overdue') && (
@@ -178,6 +179,14 @@ export function InvoiceDetail() {
           </Button>}
         </div>
       </div>
+
+      {invoice.status !== 'draft' && (
+        <CreditNotesSection
+          invoiceId={invoice.id}
+          status={invoice.status}
+          archived={Boolean(invoice.archive)}
+        />
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
