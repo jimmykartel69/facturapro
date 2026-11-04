@@ -25,7 +25,7 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
 
-    const updated = await db.user.update({
+    await db.user.update({
       where: { id: user.id },
       data: {
         ...(body.name !== undefined && { name: body.name }),
@@ -88,7 +88,9 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ settings: updated });
+    // Return only whitelisted fields; never expose tokens or password hashes.
+    const safeSettings = await getCurrentUser();
+    return NextResponse.json({ settings: safeSettings });
   } catch (error) {
     console.error('Settings PUT error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
