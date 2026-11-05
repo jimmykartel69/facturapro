@@ -36,6 +36,7 @@ model User {
   directorTitle    String?
   logoBase64       String?
   logoMimeType     String?
+  showCompanyNameWithLogo Boolean @default(false)
   accentColor      String   @default("#1a1a2e")
   customNotes      String   @default("")
   paymentTerms     String   @default("30 jours")
