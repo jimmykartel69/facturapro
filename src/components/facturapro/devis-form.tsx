@@ -21,6 +21,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { quoteDiscountRateForTarget } from '@/lib/devis-pricing';
 import { useAppStore } from '@/lib/store';
 import { formatCurrency, calculateTotals } from '@/lib/helpers';
 import type { Devis, DevisItem } from '@/lib/types';
@@ -84,6 +86,12 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
   const [siteReference, setSiteReference] = useState(() => existing?.siteReference || '');
   const [notes, setNotes] = useState(() => existing?.notes || '');
   const [globalDiscount, setGlobalDiscount] = useState(() => existing?.globalDiscount || 0);
+  const [targetTotalInput, setTargetTotalInput] = useState(
+    () => existing?.targetTotalTtc != null ? existing.targetTotalTtc.toFixed(2) : ''
+  );
+  const [showEarlyExecutionRequest, setShowEarlyExecutionRequest] = useState(
+    () => existing?.showEarlyExecutionRequest === true
+  );
   const [validUntil, setValidUntil] = useState(
     () => existing?.validUntil ? existing.validUntil.split('T')[0] : d.toISOString().split('T')[0]
   );
@@ -104,12 +112,25 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
   };
 
   const totals = calculateTotals(items);
-  const discountAmount = totals.totalTtc * (globalDiscount / 100);
-  const finalTotal = totals.totalTtc - discountAmount;
+  const wanted = targetTotalInput.trim();
+  const parsedTarget = Number(wanted.replace(',', '.'));
+  const targetInvalid = wanted !== '' && (
+    !/^\\d+(?:[.,]\\d{1,2})?$/.test(wanted) ||
+    !Number.isFinite(parsedTarget) ||
+    parsedTarget > totals.totalTtc ||
+    parsedTarget < 0
+  );
+  const targetTotalTtc = wanted !== '' && !targetInvalid ? Math.round(parsedTarget * 100) / 100 : null;
+  const effectiveDiscount = targetTotalTtc !== null
+    ? quoteDiscountRateForTarget(totals.totalTtc, targetTotalTtc)
+    : globalDiscount;
+  const finalTotal = targetTotalTtc !== null
+    ? targetTotalTtc
+    : Math.round(totals.totalTtc * (1 - globalDiscount / 100) * 100) / 100;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientId || items.length === 0) return;
+    if (!clientId || items.length === 0 || targetInvalid) return;
     setLoading(true);
     const data = {
       clientId,
@@ -123,7 +144,9 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
         tvaRate: Number(tvaRate),
       })),
       notes: notes || null,
-      globalDiscount: Number(globalDiscount),
+      globalDiscount: effectiveDiscount,
+      targetTotalTtc,
+      showEarlyExecutionRequest,
       validUntil: validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     };
     let err: string | null;
@@ -336,14 +359,45 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                   type="number"
                   min="0"
                   max="100"
-                  step="0.1"
-                  value={globalDiscount}
-                  onChange={(e) => setGlobalDiscount(parseFloat(e.target.value) || 0)}
+                  step="0.01"
+                  value={targetTotalTtc !== null ? effectiveDiscount.toFixed(2) : globalDiscount}
+                  onChange={(e) => {
+                    setTargetTotalInput('');
+                    setGlobalDiscount(parseFloat(e.target.value) || 0);
+                  }}
                   className="w-24 h-8"
                 />
               </div>
               <span className="text-lg font-bold">{formatCurrency(finalTotal)}</span>
             </div>
+            <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="devis-target-total">Total TTC souhaité (€)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Saisissez le montant final exact : la remise se calcule automatiquement.
+                </p>
+              </div>
+              <Input
+                id="devis-target-total"
+                type="text"
+                inputMode="decimal"
+                value={targetTotalInput}
+                onChange={(e) => setTargetTotalInput(e.target.value)}
+                placeholder="Ex. : 250,00"
+                aria-invalid={targetInvalid}
+                className="w-full sm:w-36"
+              />
+            </div>
+            {targetInvalid && (
+              <p className="text-sm text-destructive" role="alert">
+                Indiquez un montant de 0 € à {formatCurrency(totals.totalTtc)}, avec au maximum deux décimales.
+              </p>
+            )}
+            {targetTotalTtc !== null && (
+              <p className="text-xs text-muted-foreground">
+                Remise affichée à 2 décimales ; le calcul exact est conservé pour obtenir le total choisi.
+              </p>
+            )}
           </div>
 
           {/* Date + Notes */}
@@ -357,6 +411,21 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                 onChange={(e) => setValidUntil(e.target.value)}
                 required
               />
+              <div className="mt-3 rounded-lg border p-3 space-y-2">
+                <label className="flex cursor-pointer items-start gap-2 text-sm font-medium">
+                  <Checkbox
+                    checked={showEarlyExecutionRequest}
+                    onCheckedChange={(checked) => setShowEarlyExecutionRequest(checked === true)}
+                    aria-label="Ajouter la demande expresse d'exécution anticipée au devis"
+                  />
+                  <span>Ajouter la demande expresse d&apos;exécution anticipée au devis</span>
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Si activé : une case vide, le texte légal et la zone date/signature apparaissent sous la validité du devis PDF.
+                  Le client doit cocher et signer lui-même ; cette option ne vaut pas accord.
+                  Retirez toute ancienne copie de cette clause des notes pour éviter un doublon.
+                </p>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="devis-notes">Notes / Conditions</Label>
@@ -375,7 +444,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
             <Button type="button" variant="outline" onClick={() => setShowDevisForm(false)}>
               Annuler
             </Button>
-            <Button type="submit" disabled={loading || !clientId || items.length === 0}>
+            <Button type="submit" disabled={loading || !clientId || items.length === 0 || targetInvalid}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editingDevisId ? 'Mettre à jour' : 'Créer le devis'}
             </Button>
