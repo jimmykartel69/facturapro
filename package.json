@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
+    "test": "node --experimental-strip-types --test",
     "start": "node .next/standalone/server.js",
     "lint": "eslint .",
     "postinstall": "prisma generate",

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
 import { siteReferenceSchema } from '@/lib/site-reference';
+import { parseBillingItems } from '@/lib/billing-input';
+import { resolveQuotePricing } from '@/lib/devis-pricing';
 
 export async function GET(
   request: NextRequest,
@@ -62,20 +65,75 @@ export async function PUT(
     if (!existing) {
       return NextResponse.json({ error: 'Devis non trouvé' }, { status: 404 });
     }
+    if (existing.status === 'converted') {
+      return NextResponse.json(
+        { error: 'Ce devis est déjà converti en facture et ne peut plus être modifié.' },
+        { status: 409 }
+      );
+    }
+
+    if (body.clientId !== undefined) {
+      const client = await db.client.findFirst({
+        where: { id: String(body.clientId), userId: user.id },
+        select: { id: true },
+      });
+      if (!client) return NextResponse.json({ error: 'Client non trouvé' }, { status: 404 });
+    }
+
+    if (body.status !== undefined && !['draft', 'sent', 'accepted', 'refused'].includes(body.status)) {
+      return NextResponse.json({ error: 'Statut de devis invalide' }, { status: 400 });
+    }
+    if (body.validUntil !== undefined && Number.isNaN(new Date(body.validUntil).getTime())) {
+      return NextResponse.json({ error: 'Date de validité invalide' }, { status: 400 });
+    }
+    if (body.globalDiscount !== undefined &&
+        (!Number.isFinite(Number(body.globalDiscount)) ||
+         Number(body.globalDiscount) < 0 || Number(body.globalDiscount) > 100)) {
+      return NextResponse.json({ error: 'Remise globale invalide' }, { status: 400 });
+    }
+    const parsedItems = body.items !== undefined ? parseBillingItems(body.items) : null;
+    if (parsedItems && !parsedItems.ok) {
+      return NextResponse.json({ error: parsedItems.error }, { status: 400 });
+    }
+    if (body.showEarlyExecutionRequest !== undefined && typeof body.showEarlyExecutionRequest !== 'boolean') {
+      return NextResponse.json({ error: "L'option d'exécution anticipée est invalide" }, { status: 400 });
+    }
+
+    const pricingChanged = body.items !== undefined || body.globalDiscount !== undefined || body.targetTotalTtc !== undefined;
+    let pricing: ReturnType<typeof resolveQuotePricing> | undefined;
+    if (pricingChanged) {
+      const pricingItems = parsedItems?.ok
+        ? parsedItems.items
+        : await db.devisItem.findMany({
+            where: { devisId: id },
+            select: { quantity: true, unitPrice: true, tvaRate: true },
+          });
+      try {
+        pricing = resolveQuotePricing(
+          pricingItems,
+          body.globalDiscount ?? existing.globalDiscount,
+          body.targetTotalTtc !== undefined ? body.targetTotalTtc : existing.targetTotalTtc,
+          user.vatRegime === 'franchise',
+        );
+      } catch (error) {
+        return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+      }
+    }
 
     const devis = await db.devis.update({
-      where: { id },
+      where: { id, userId: user.id, status: { not: 'converted' } },
       data: {
         ...(body.clientId !== undefined && { clientId: body.clientId }),
         ...(body.status !== undefined && { status: body.status }),
         ...(body.validUntil !== undefined && { validUntil: new Date(body.validUntil) }),
         ...(body.siteReference !== undefined && { siteReference: referenceResult.data ?? null }),
         ...(body.notes !== undefined && { notes: body.notes }),
-        ...(body.globalDiscount !== undefined && { globalDiscount: body.globalDiscount }),
-        ...(body.items && {
+        ...(pricing !== undefined && { globalDiscount: pricing.globalDiscount, targetTotalTtc: pricing.targetTotalTtc }),
+        ...(body.showEarlyExecutionRequest !== undefined && { showEarlyExecutionRequest: body.showEarlyExecutionRequest }),
+        ...(parsedItems?.ok && {
           items: {
             deleteMany: {},
-            create: body.items.map((item: { designation: string; description?: string; quantity: number; unit: string; unitPrice: number; tvaRate: number }) => ({
+            create: parsedItems.items.map((item) => ({
               designation: item.designation,
               description: item.description || null,
               quantity: item.quantity,
@@ -95,6 +153,9 @@ export async function PUT(
     return NextResponse.json({ devis });
   } catch (error) {
     console.error('Devis PUT error:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return NextResponse.json({ error: 'Devis modifié entre-temps. Actualisez la page.' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
@@ -117,11 +178,20 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json({ error: 'Devis non trouvé' }, { status: 404 });
     }
+    if (existing.status === 'converted') {
+      return NextResponse.json(
+        { error: 'Un devis converti en facture ne peut pas être supprimé.' },
+        { status: 409 }
+      );
+    }
 
-    await db.devis.delete({ where: { id } });
+    await db.devis.delete({ where: { id, userId: user.id, status: { not: 'converted' } } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Devis DELETE error:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return NextResponse.json({ error: 'Devis modifié entre-temps. Actualisez la page.' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

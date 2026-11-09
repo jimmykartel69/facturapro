@@ -17,6 +17,7 @@ function load(file, mocks = {}) {
   return mod.exports;
 }
 const validation = load('src/lib/site-reference.ts');
+const billing = load('src/lib/billing-input.ts');
 const params = { params: Promise.resolve({ id: 'quote-1' }) };
 const request = (body) => ({ json: async () => body });
 function route(file, db, user = { id: 'owner' }) {
@@ -24,6 +25,7 @@ function route(file, db, user = { id: 'owner' }) {
     '@/lib/session': { getCurrentUser: async () => user },
     '@/lib/db': { db },
     '@/lib/site-reference': validation,
+    '@/lib/billing-input': billing,
   });
 }
 test('normalize, clear and reject invalid references', () => {

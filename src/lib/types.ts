@@ -53,6 +53,8 @@ export interface Devis {
   validUntil: string;
   notes?: string | null;
   globalDiscount: number;
+  targetTotalTtc?: number | null;
+  showEarlyExecutionRequest?: boolean;
   client: Pick<Client, 'id' | 'name' | 'company'>;
   items: DevisItem[];
   createdAt: string;
@@ -81,6 +83,7 @@ export interface Invoice {
   globalDiscount: number;
   client: Pick<Client, 'id' | 'name' | 'company'>;
   devis?: { number: string } | null;
+  archive?: { sha256: string; archivedAt: string } | null;
   items: InvoiceItem[];
   createdAt: string;
 }

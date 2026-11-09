@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { createHash } from 'node:crypto';
 import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
+import { canEditInvoiceDocument, isAllowedInvoiceTransition } from '@/lib/invoice-guards';
+import { makeInvoiceSnapshot } from '@/lib/invoice-archive';
+import { generateInvoicePDF } from '@/lib/pdf';
 
 const ALLOWED_INVOICE_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const;
 type InvoiceStatus = (typeof ALLOWED_INVOICE_STATUSES)[number];
@@ -81,6 +85,7 @@ async function getOwnedInvoice(userId: string, invoiceId: string) {
       client: true,
       items: { orderBy: { createdAt: 'asc' } },
       devis: { select: { id: true, number: true, status: true, clientId: true } },
+      archive: { select: { sha256: true, archivedAt: true } },
     },
   });
 }
@@ -171,15 +176,43 @@ export async function PUT(
       return NextResponse.json({ error: 'Aucune donnée à mettre à jour' }, { status: 400 });
     }
 
-    if (
-      (existing.status === 'paid' || existing.status === 'cancelled') &&
-      (hasClientId || hasDueDate || hasGlobalDiscount || hasItems)
-    ) {
+    // An issued invoice is immutable except for legitimate payment/status changes.
+    // Historical corrections must be performed through a credit note or correction document.
+    const hasDocumentChanges = hasClientId || hasDueDate || hasNotes || hasGlobalDiscount || hasItems;
+    if (!canEditInvoiceDocument(existing.status) && hasDocumentChanges) {
       return NextResponse.json(
-        { error: 'Cette facture ne peut plus être modifiée sur ses données financières' },
-        { status: 400 }
+        { error: 'Facture émise : contenu non modifiable. Créez un avoir ou une facture rectificative.' },
+        { status: 409 }
       );
     }
+
+    if (hasStatus) {
+      const nextStatus = String(body.status ?? '').trim();
+      if (!isAllowedInvoiceTransition(existing.status, nextStatus)) {
+        return NextResponse.json(
+          { error: 'Transition de statut interdite pour cette facture' },
+          { status: 409 }
+        );
+      }
+    }
+
+    if (hasStatus && existing.status !== 'draft') {
+      const existingCredits = await db.creditNote.count({ where: { invoiceId: id, userId: user.id } });
+      if (existingCredits > 0 && body.status !== existing.status) {
+        return NextResponse.json({ error: 'Facture intégralement créditée : statut verrouillé.' }, { status: 409 });
+      }
+    }
+
+    const firstIssue = existing.status === 'draft' &&
+      (body.status === 'sent' || body.status === 'paid');
+    if (firstIssue && hasDocumentChanges) {
+      return NextResponse.json({
+        error: 'Modifiez le brouillon avant de procéder à son émission.',
+      }, { status: 409 });
+    }
+
+    // PDF rendering and storage occur inside the invoice update transaction.
+    // A concurrent draft update cannot change the issued document.
 
     const updateData: Prisma.InvoiceUpdateInput = {};
 
@@ -273,7 +306,7 @@ export async function PUT(
 
     const invoice = await db.$transaction(async (tx) => {
       const updated = await tx.invoice.update({
-        where: { id: existing.id },
+        where: { id: existing.id, userId: user.id, status: existing.status },
         data: {
           ...updateData,
           ...(parsedItems
@@ -299,6 +332,21 @@ export async function PUT(
         },
       });
 
+      if (firstIssue) {
+        // The invoice row is locked by update() until this transaction commits.
+        // The archived bytes correspond exactly to the row being issued.
+        const pdf = await generateInvoicePDF(updated, user);
+        const snapshot = makeInvoiceSnapshot(updated, user);
+        await tx.invoiceArchive.create({
+          data: {
+            invoiceId: id,
+            userId: user.id,
+            pdfBytes: new Uint8Array(pdf),
+            sha256: createHash('sha256').update(pdf).digest('hex'),
+            snapshot: snapshot as unknown as Prisma.InputJsonValue,
+          },
+        });
+      }
       return updated;
     });
 
@@ -319,7 +367,7 @@ export async function PUT(
         );
       }
       if (error.code === 'P2025') {
-        return NextResponse.json({ error: 'Facture non trouvée' }, { status: 404 });
+        return NextResponse.json({ error: 'Statut de la facture modifié entre-temps. Actualisez la page.' }, { status: 409 });
       }
     }
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
@@ -353,9 +401,15 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json({ error: 'Facture non trouvée' }, { status: 404 });
     }
+    if (!canEditInvoiceDocument(existing.status)) {
+      return NextResponse.json(
+        { error: 'Une facture émise ne peut pas être supprimée. Procédez par avoir ou rectification.' },
+        { status: 409 }
+      );
+    }
 
     await db.$transaction(async (tx) => {
-      await tx.invoice.delete({ where: { id: existing.id } });
+      await tx.invoice.delete({ where: { id: existing.id, userId: user.id, status: 'draft' } });
 
       if (existing.devisId) {
         await tx.devis.updateMany({
@@ -373,7 +427,7 @@ export async function DELETE(
   } catch (error) {
     console.error('Invoice DELETE error:', error);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-      return NextResponse.json({ error: 'Facture non trouvée' }, { status: 404 });
+      return NextResponse.json({ error: 'Facture modifiée entre-temps. Actualisez la page.' }, { status: 409 });
     }
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
