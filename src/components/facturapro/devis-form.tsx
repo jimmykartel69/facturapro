@@ -115,7 +115,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
   const wanted = targetTotalInput.trim();
   const parsedTarget = Number(wanted.replace(',', '.'));
   const targetInvalid = wanted !== '' && (
-    !/^\\d+(?:[.,]\\d{1,2})?$/.test(wanted) ||
+    !/^\d+(?:[.,]\d{1,2})?$/.test(wanted) ||
     !Number.isFinite(parsedTarget) ||
     parsedTarget > totals.totalTtc ||
     parsedTarget < 0
