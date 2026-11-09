@@ -6,6 +6,7 @@ const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', '
 
 interface InvoiceLike {
   globalDiscount: number;
+  targetTotalTtc?: number | null;
   items: Array<{
     quantity: number;
     unitPrice: number;
@@ -18,6 +19,7 @@ function round2(value: number): number {
 }
 
 function computeInvoiceTotalTtc(invoice: InvoiceLike): number {
+  if (invoice.targetTotalTtc != null) return round2(invoice.targetTotalTtc);
   const grossHt = invoice.items.reduce(
     (sum, item) => sum + item.quantity * item.unitPrice,
     0
@@ -109,6 +111,7 @@ export async function GET() {
             number: true,
             status: true,
             globalDiscount: true,
+            targetTotalTtc: true,
             client: { select: { name: true, company: true } },
             items: {
               select: { quantity: true, unitPrice: true, tvaRate: true },
