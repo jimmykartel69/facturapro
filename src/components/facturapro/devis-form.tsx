@@ -115,7 +115,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const totals = calculateTotals(items);
+  const totals = calculateTotals(items.map((item) => ({ ...item, tvaRate: vatExempt ? 0 : item.tvaRate })));
   const wanted = targetTotalInput.trim();
   const parsedTarget = Number(wanted.replace(',', '.'));
   const targetInvalid = wanted !== '' && (
