@@ -1631,7 +1631,7 @@ function drawCgvAnnex(ctx: Ctx): void {
  * a high-entropy public token. No customer-identifying or billing data goes into
  * the public record. Old issued invoices keep their archived PDFs unchanged.
  */
-async function prepareCgvQr(
+export async function prepareCgvQr(
   company: CompanyInfo,
   client: Client,
   documentType: DocType,
