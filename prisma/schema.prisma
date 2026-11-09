@@ -119,6 +119,8 @@ model Devis {
   validUntil  DateTime
   notes       String?
   globalDiscount Float @default(0)
+  targetTotalTtc Float?
+  showEarlyExecutionRequest Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
