@@ -36,6 +36,7 @@ export function DocumentSettingsPage() {
     vatRegime: 'unspecified',
     vatExemptionText: DEFAULT_VAT_TEXT,
     showCgv: false,
+    cgvDeliveryMode: 'annex',
     customCgvB2c: '',
     customCgvB2b: '',
     mediatorName: '',
@@ -64,6 +65,7 @@ export function DocumentSettingsPage() {
       vatRegime: settings.vatRegime || 'unspecified',
       vatExemptionText: settings.vatExemptionText || DEFAULT_VAT_TEXT,
       showCgv: settings.showCgv ?? false,
+      cgvDeliveryMode: settings.cgvDeliveryMode || 'annex',
       customCgvB2c: settings.customCgvB2c || '',
       customCgvB2b: settings.customCgvB2b || '',
       mediatorName: settings.mediatorName || '',
@@ -106,6 +108,7 @@ export function DocumentSettingsPage() {
       vatRegime: form.vatRegime,
       vatExemptionText: form.vatExemptionText.trim() || DEFAULT_VAT_TEXT,
       showCgv: form.showCgv,
+      cgvDeliveryMode: form.cgvDeliveryMode,
       customCgvB2c: form.customCgvB2c.trim() || null,
       customCgvB2b: form.customCgvB2b.trim() || null,
       mediatorName: form.mediatorName.trim() || null,
@@ -172,6 +175,25 @@ export function DocumentSettingsPage() {
             />
             <Label htmlFor="deposit-enabled">Activer la règle d’acompte</Label>
           </div>
+
+          {form.showCgv && (
+            <div className="space-y-2 rounded-lg border p-4">
+              <Label htmlFor="cgv-delivery">Présentation des CGV dans les devis et factures</Label>
+              <Select value={form.cgvDeliveryMode} onValueChange={(value) => setField('cgvDeliveryMode', value)}>
+                <SelectTrigger id="cgv-delivery"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="annex">Annexe PDF complète (mode sécurisé par défaut)</SelectItem>
+                  <SelectItem value="qr">QR code + page HTML / PDF téléchargeable</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                En mode QR : la version des CGV est archivée lors de la génération du document.
+                Téléchargez et transmettez séparément le PDF des CGV au client lorsque la loi
+                exige un support durable. Un QR code seul ne constitue pas une preuve de remise.
+                Les documents déjà émis conservent leur version archivée.
+              </p>
+            </div>
+          )}
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -277,7 +299,7 @@ export function DocumentSettingsPage() {
               checked={form.showCgv}
               onCheckedChange={(value) => setField('showCgv', value === true)}
             />
-            <Label htmlFor="show-cgv">Joindre les CGV aux documents</Label>
+            <Label htmlFor="show-cgv">Activer les CGV sur les documents</Label>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
