@@ -59,12 +59,16 @@ interface InvoiceFormProps {
 export function InvoiceForm({ editingInvoiceId }: InvoiceFormProps) {
   const {
     showInvoiceForm,
+    settings,
     clients,
     invoices,
     setShowInvoiceForm,
     createInvoice,
     updateInvoice,
   } = useAppStore();
+
+  const vatExempt = settings?.vatRegime === 'franchise';
+  const priceLabel = vatExempt ? 'TTC' : 'HT';
 
   const existing = editingInvoiceId ? invoices.find((i: Invoice) => i.id === editingInvoiceId) : null;
 
@@ -233,7 +237,7 @@ export function InvoiceForm({ editingInvoiceId }: InvoiceFormProps) {
                     </div>
                     <div className="min-w-0 md:col-span-2">
                       <Label className="text-xs font-medium text-muted-foreground mb-1 block">
-                        Prix unit. HT
+                        Prix unit. {priceLabel}
                       </Label>
                       <Input
                         type="number"
@@ -265,7 +269,7 @@ export function InvoiceForm({ editingInvoiceId }: InvoiceFormProps) {
                     </div>
                     <div className="col-span-2 min-w-0 md:col-span-2">
                       <Label className="text-xs font-medium text-muted-foreground mb-1 block">
-                        Total HT
+                        Total {priceLabel}
                       </Label>
                       <div className="flex min-w-0 items-center h-9 px-3 bg-muted rounded-md border text-sm font-semibold">
                         {formatCurrency(item.quantity * item.unitPrice)}
@@ -297,14 +301,14 @@ export function InvoiceForm({ editingInvoiceId }: InvoiceFormProps) {
               <span>Total HT</span>
               <span className="font-medium">{formatCurrency(totals.totalHt)}</span>
             </div>
-            {Object.entries(totals.tvaDetails).map(([rate, amount]) => (
+            {!vatExempt && Object.entries(totals.tvaDetails).map(([rate, amount]) => (
               <div key={rate} className="flex justify-between text-sm text-muted-foreground">
                 <span>TVA {rate}%</span>
                 <span>{formatCurrency(amount)}</span>
               </div>
             ))}
             <div className="flex justify-between text-sm">
-              <span>Total TVA</span>
+              <span>{vatExempt ? 'TVA non applicable' : 'Total TVA'}</span>
               <span>{formatCurrency(totals.totalTva)}</span>
             </div>
             <div className="flex justify-between text-sm font-semibold">
