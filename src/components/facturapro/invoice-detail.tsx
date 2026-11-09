@@ -116,7 +116,7 @@ export function InvoiceDetail() {
 
   const vatExempt = settings?.vatRegime === 'franchise';
   const priceLabel = vatExempt ? 'TTC' : 'HT';
-  const totals = calculateTotals(invoice.items);
+  const totals = calculateTotals(invoice.items.map((item) => ({ ...item, tvaRate: vatExempt ? 0 : item.tvaRate })));
   const discountAmount = totals.totalTtc * (invoice.globalDiscount / 100);
   const finalTotal = totals.totalTtc - discountAmount;
   const canEdit = invoice.status === 'draft';
