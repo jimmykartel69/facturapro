@@ -109,6 +109,25 @@ export function DevisDetail() {
     if (!selectedDevisId) return;
     window.open(`/api/devis/${selectedDevisId}/pdf`, '_blank');
   };
+  const handleCgvDownload = async () => {
+    if (!selectedDevisId) return;
+    setActionLoading('cgv');
+    try {
+      const response = await fetch(`/api/cgv/document/devis/${selectedDevisId}`);
+      const payload = await response.json();
+      if (!response.ok || !payload.downloadUrl) {
+        alert(payload.error || 'CGV indisponibles.');
+        return;
+      }
+      // Content-Disposition: attachment keeps the document page in place.
+      window.location.assign(payload.downloadUrl);
+    } catch {
+      alert('Impossible de télécharger les CGV.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
 
   const refetchDevis = () => {
     if (!selectedDevisId) return;
@@ -170,6 +189,12 @@ export function DevisDetail() {
             <Download className="w-4 h-4 mr-1.5" />
             PDF
           </Button>
+          {settings?.showCgv && settings.cgvDeliveryMode === 'qr' && (
+            <Button variant="outline" size="sm" onClick={handleCgvDownload} disabled={!!actionLoading}>
+              {actionLoading === 'cgv' ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5" />}
+              Télécharger CGV
+            </Button>
+          )}
           {devis.status === 'draft' && (
             <Button variant="outline" size="sm" onClick={() => handleStatus('sent')} disabled={!!actionLoading}>
               {actionLoading === 'sent' ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Send className="w-4 h-4 mr-1.5" />}
