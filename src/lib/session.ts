@@ -60,6 +60,7 @@ export async function getCurrentUser() {
       vatRegime: true,
       vatExemptionText: true,
       showCgv: true,
+      cgvDeliveryMode: true,
       customCgvB2c: true,
       customCgvB2b: true,
       mediatorName: true,

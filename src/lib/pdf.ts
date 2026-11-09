@@ -1,4 +1,7 @@
 import PDFDocument from 'pdfkit';
+import QRCode from 'qrcode';
+import { createHash } from 'node:crypto';
+import { db } from '@/lib/db';
 import { quoteGrossTtc, quoteDiscountRateForTarget } from '@/lib/devis-pricing';
 import type { Client, Devis, DevisItem, Invoice, InvoiceItem } from '@prisma/client';
 
@@ -6,6 +9,8 @@ type DocType = 'devis' | 'invoice';
 type BillingItem = DevisItem | InvoiceItem;
 
 interface CompanyInfo {
+  id?: string;
+  cgvDeliveryMode?: string | null;
   companyName?: string | null;
   name: string;
   firstName: string;
@@ -83,6 +88,7 @@ interface Ctx {
   siteReference?: string | null;
   targetTotalTtc?: number | null;
   showEarlyExecutionRequest?: boolean;
+  cgvQr?: { url: string; png: Buffer; version: string };
   totals: TotalsBreakdown;
 }
 
@@ -449,6 +455,7 @@ function hasBusinessCgv(ctx: Ctx): boolean {
 }
 
 function hasCgvAnnex(ctx: Ctx): boolean {
+  if (ctx.cgvQr) return false;
   if (ctx.company.showCgv !== true) return false;
   if (isBusinessClient(ctx.client)) return true;
   return isConsumerClient(ctx.client) && Boolean(clean(ctx.company.customCgvB2c));
@@ -761,7 +768,9 @@ if (ctx.docType === 'invoice' && ctx.extraDate) {
   rightLines.push(`Échéance : ${fmtDate(ctx.extraDate)}`);
 }
 
-if (hasCgvAnnex(ctx)) {
+if (ctx.cgvQr) {
+  rightLines.push('CGV accessibles par QR code et PDF séparé');
+} else if (hasCgvAnnex(ctx)) {
   rightLines.push(
     isBusinessClient(client)
       ? 'CGV professionnelles : annexe jointe'
@@ -1616,6 +1625,110 @@ function drawCgvAnnex(ctx: Ctx): void {
   ctx.y += closingHeight;
 }
 
+
+/**
+ * An immutable CGV snapshot is bound to a unique document and resolved through
+ * a high-entropy public token. No customer-identifying or billing data goes into
+ * the public record. Old issued invoices keep their archived PDFs unchanged.
+ */
+export async function prepareCgvQr(
+  company: CompanyInfo,
+  client: Client,
+  documentType: DocType,
+  documentId: string,
+): Promise<Ctx['cgvQr']> {
+  if (!company.id || !documentId) return undefined;
+
+  let snapshot = await db.cgvSnapshot.findUnique({
+    where: { documentType_documentId: { documentType, documentId } },
+  });
+
+  if (!snapshot) {
+    if (company.showCgv !== true || company.cgvDeliveryMode !== 'qr') return undefined;
+    const type = clean(client.clientType).toLowerCase();
+    if (!['consumer', 'business'].includes(type)) return undefined;
+    const custom = type === 'consumer'
+      ? clean(company.customCgvB2c)
+      : clean(company.customCgvB2b);
+    // B2C requires the company's own terms: there is no built-in consumer template.
+    if (type === 'consumer' && !custom) return undefined;
+
+    const identity = [
+      companyDisplayName(company),
+      clean(company.siret) ? 'SIRET : ' + clean(company.siret) : '',
+      clean(company.professionalEmail) ? 'Contact : ' + clean(company.professionalEmail) : '',
+    ].filter(Boolean).join('\n');
+
+    const defaultBusiness = [
+      ...NEOVOLT_CGV_INTRO,
+      ...NEOVOLT_CGV_SECTIONS.map(s => s.title + '\n' + s.paragraphs.join('\n')),
+    ].join('\n\n');
+
+    const mediator = type === 'consumer' && clean(company.mediatorName)
+      ? '\n\nMédiation : ' + [
+          clean(company.mediatorName),
+          clean(company.mediatorAddress),
+          clean(company.mediatorWebsite),
+        ].filter(Boolean).join(' - ')
+      : '';
+
+    const content = identity + '\n\n' + (custom || defaultBusiness)
+      .replace(/NEOVOLT/gi, companyDisplayName(company)) + mediator;
+    const version = createHash('sha256').update(content, 'utf8').digest('hex');
+    snapshot = await db.cgvSnapshot.upsert({
+      where: { documentType_documentId: { documentType, documentId } },
+      create: {
+        userId: company.id,
+        documentType,
+        documentId,
+        clientType: type,
+        companyName: companyDisplayName(company),
+        content,
+        version,
+      },
+      update: {}, // Never replace an already published contractual version.
+    });
+  }
+
+  const origin = process.env.VERCEL_ENV === 'production'
+    ? 'https://facturapro-vercel.vercel.app'
+    : process.env.VERCEL_URL
+      ? 'https://' + process.env.VERCEL_URL
+      : 'http://localhost:3000';
+
+  const url = origin + '/cgv/' + snapshot.token;
+  const png = await QRCode.toBuffer(url, {
+    type: 'png',
+    width: 200,
+    margin: 1,
+    errorCorrectionLevel: 'M',
+  });
+  return { url, png, version: snapshot.version.substring(0, 12) };
+}
+
+function drawCgvQrCard(ctx: Ctx): void {
+  if (!ctx.cgvQr) return;
+  const { doc, cgvQr } = ctx;
+  const h = 84;
+  ensureSpace(ctx, h + 10);
+  const y = ctx.y;
+  doc.roundedRect(MG, y, CW, h, 7).fill(C.bgLight);
+  doc.roundedRect(MG, y, CW, h, 7).strokeColor(C.accentBorder).lineWidth(0.6).stroke();
+  doc.image(cgvQr.png, MG + 10, y + 8, { width: 66, height: 66 });
+  const tx = MG + 88;
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(C.primary)
+    .text('CONDITIONS GÉNÉRALES DE VENTE', tx, y + 12, { width: CW - 104 });
+  doc.font('Helvetica').fontSize(8).fillColor(C.textSec)
+    .text('Scannez pour consulter et télécharger les CGV (version ' + cgvQr.version + ').',
+      tx, y + 29, { width: CW - 104 });
+  doc.font('Helvetica').fontSize(7).fillColor(C.accent)
+    .text(cgvQr.url, tx, y + 49, {
+      width: CW - 104, link: cgvQr.url, underline: true,
+    });
+  doc.link(MG + 8, y + 7, 70, 70, cgvQr.url);
+  ctx.y += h + 12;
+}
+
 function buildDocument(
   company: CompanyInfo,
   client: Client,
@@ -1630,6 +1743,7 @@ function buildDocument(
   siteReference?: string | null,
   targetTotalTtc?: number | null,
   showEarlyExecutionRequest?: boolean,
+  cgvQr?: Ctx['cgvQr'],
 ): Promise<Buffer> {
   const doc = new PDFDocument({
     size: 'A4',
@@ -1678,6 +1792,7 @@ function buildDocument(
         siteReference,
         targetTotalTtc,
         showEarlyExecutionRequest,
+        cgvQr,
         totals,
       };
 
@@ -1698,6 +1813,7 @@ function buildDocument(
       drawConditions(ctx);
       drawSignature(ctx);
       drawPremiumClosingNote(ctx);
+      drawCgvQrCard(ctx);
       drawCgvAnnex(ctx);
 
       drawFooter(ctx);
@@ -1715,6 +1831,7 @@ export async function generateDevisPDF(
   devis: Devis & { client: Client; items: DevisItem[] },
   user: CompanyInfo,
 ): Promise<Buffer> {
+  const cgvQr = await prepareCgvQr(user, devis.client, 'devis', devis.id);
   return buildDocument(
     user,
     devis.client,
@@ -1729,6 +1846,7 @@ export async function generateDevisPDF(
     devis.siteReference,
     devis.targetTotalTtc,
     devis.showEarlyExecutionRequest,
+    cgvQr,
   );
 }
 
@@ -1736,6 +1854,7 @@ export async function generateInvoicePDF(
   invoice: Invoice & { client: Client; items: InvoiceItem[]; devis?: { number: string } | null },
   user: CompanyInfo,
 ): Promise<Buffer> {
+  const cgvQr = await prepareCgvQr(user, invoice.client, 'invoice', invoice.id);
   return buildDocument(
     user,
     invoice.client,
@@ -1748,5 +1867,8 @@ export async function generateInvoicePDF(
     invoice.devis?.number,
     invoice.notes,
     invoice.siteReference,
+    undefined,
+    undefined,
+    cgvQr,
   );
 }

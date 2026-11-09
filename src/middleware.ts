@@ -26,6 +26,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('facturapro_session')?.value;
 
+  // Only versioned, unguessable CGV content is public. Owner endpoints
+  // (/api/cgv/document/...) remain protected and validated by their handler.
+  if (/^\/cgv\/[0-9a-f-]{36}\/?$/i.test(pathname) ||
+      /^\/api\/cgv\/[0-9a-f-]{36}\/pdf\/?$/i.test(pathname)) {
+    return NextResponse.next();
+  }
+
   // Public auth API routes: always pass through
   if (isPublicApi(pathname)) {
     return NextResponse.next();
