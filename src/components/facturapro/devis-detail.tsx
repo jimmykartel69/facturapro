@@ -131,7 +131,7 @@ export function DevisDetail() {
 
   const vatExempt = settings?.vatRegime === 'franchise';
   const priceLabel = vatExempt ? 'TTC' : 'HT';
-  const totals = calculateTotals(devis.items);
+  const totals = calculateTotals(devis.items.map((item) => ({ ...item, tvaRate: vatExempt ? 0 : item.tvaRate })));
   const finalTotal = devis.targetTotalTtc != null
     ? devis.targetTotalTtc
     : Math.round(totals.totalTtc * (1 - devis.globalDiscount / 100) * 100) / 100;
