@@ -53,6 +53,8 @@ export interface Devis {
   validUntil: string;
   notes?: string | null;
   globalDiscount: number;
+  targetTotalTtc?: number | null;
+  showEarlyExecutionRequest?: boolean;
   client: Pick<Client, 'id' | 'name' | 'company'>;
   items: DevisItem[];
   createdAt: string;
