@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import { quoteGrossTtc, quoteDiscountRateForTarget } from '@/lib/devis-pricing';
 import type { Client, Devis, DevisItem, Invoice, InvoiceItem } from '@prisma/client';
 
 type DocType = 'devis' | 'invoice';
@@ -80,6 +81,8 @@ interface Ctx {
   globalDiscount: number;
   documentNotes?: string | null;
   siteReference?: string | null;
+  targetTotalTtc?: number | null;
+  showEarlyExecutionRequest?: boolean;
   totals: TotalsBreakdown;
 }
 
@@ -493,9 +496,16 @@ function clientAddressLine(client: Client): string {
   return [clean(client.postalCode), clean(client.city)].filter(Boolean).join(' ');
 }
 
-function computeTotals(items: BillingItem[], globalDiscount: number, ae: boolean): TotalsBreakdown {
+function computeTotals(
+  items: BillingItem[],
+  globalDiscount: number,
+  ae: boolean,
+  targetTotalTtc?: number | null,
+): TotalsBreakdown {
   const grossHt = items.reduce((sum, item) => sum + toNum(item.quantity) * toNum(item.unitPrice), 0);
-  const discountRate = clamp(toNum(globalDiscount), 0, 100);
+  const discountRate = targetTotalTtc != null
+    ? quoteDiscountRateForTarget(quoteGrossTtc(items, ae), targetTotalTtc)
+    : clamp(toNum(globalDiscount), 0, 100);
   const discountAmount = grossHt * (discountRate / 100);
   const netHt = Math.max(0, grossHt - discountAmount);
 
@@ -978,6 +988,50 @@ function drawItemsTable(ctx: Ctx): void {
   }
 
   ctx.y += 10;
+}
+
+function drawEarlyExecutionRequest(ctx: Ctx): void {
+  if (ctx.docType !== 'devis' || ctx.showEarlyExecutionRequest !== true) return;
+
+  const { doc } = ctx;
+  const pad = 12;
+  const bodyWidth = CW - 2 * pad;
+  const paragraphs = [
+    "Je demande expressément à NEOVOLT de commencer les prestations avant l'expiration du délai légal de rétractation de 14 jours, lorsqu'il est applicable.",
+    "Je reconnais avoir été informé qu'après exécution intégrale de la prestation de services, je perdrai mon droit de rétractation pour cette prestation, conformément aux dispositions légales applicables.",
+  ];
+  const textWidth = bodyWidth - 4;
+  const bodyHeight = paragraphs.reduce(
+    (sum, paragraph) => sum + measureText(doc, paragraph, textWidth, 'Helvetica', 8.1) + 7,
+    0,
+  );
+  const height = 36 + bodyHeight + 23;
+  ensureSpace(ctx, height + 10);
+
+  doc.roundedRect(MG, ctx.y, CW, height, 7).fill(C.bgLight);
+  doc.roundedRect(MG, ctx.y, CW, height, 7).strokeColor(C.accentBorder).lineWidth(0.8).stroke();
+
+  // Always an empty box. Enabling the quote option never constitutes the client's consent.
+  doc.rect(MG + pad, ctx.y + 11, 12, 12).strokeColor(C.primary).lineWidth(1).stroke();
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(C.primary).text(
+    "DEMANDE EXPRESSE D'EXÉCUTION ANTICIPÉE",
+    MG + pad + 20, ctx.y + 12, { width: bodyWidth - 20 },
+  );
+
+  let y = ctx.y + 33;
+  for (const paragraph of paragraphs) {
+    const lineHeight = measureText(doc, paragraph, textWidth, 'Helvetica', 8.1);
+    doc.font('Helvetica').fontSize(8.1).fillColor(C.text).text(
+      paragraph, MG + pad, y, { width: textWidth },
+    );
+    y += lineHeight + 7;
+  }
+
+  doc.font('Helvetica').fontSize(8).fillColor(C.text).text(
+    'Date : ___________________    Signature du client : ______________________________',
+    MG + pad, y + 3, { width: textWidth },
+  );
+  ctx.y += height + 12;
 }
 
 function drawSiteReference(ctx: Ctx): void {
@@ -1574,6 +1628,8 @@ function buildDocument(
   devisNumber?: string | null,
   documentNotes?: string | null,
   siteReference?: string | null,
+  targetTotalTtc?: number | null,
+  showEarlyExecutionRequest?: boolean,
 ): Promise<Buffer> {
   const doc = new PDFDocument({
     size: 'A4',
@@ -1602,7 +1658,7 @@ function buildDocument(
       doc.addPage();
 
       const ae = isVatExempt(company);
-      const totals = computeTotals(items, globalDiscount, ae);
+      const totals = computeTotals(items, globalDiscount, ae, targetTotalTtc);
 
       const ctx: Ctx = {
         doc,
@@ -1620,6 +1676,8 @@ function buildDocument(
         globalDiscount,
         documentNotes,
         siteReference,
+        targetTotalTtc,
+        showEarlyExecutionRequest,
         totals,
       };
 
@@ -1631,6 +1689,7 @@ function buildDocument(
       ctx.y += 12;
 
       drawClientCard(ctx);
+      drawEarlyExecutionRequest(ctx);
       drawSiteReference(ctx);
       drawItemsTable(ctx);
       drawNotesBlock(ctx);
@@ -1668,6 +1727,8 @@ export async function generateDevisPDF(
     undefined,
     devis.notes,
     devis.siteReference,
+    devis.targetTotalTtc,
+    devis.showEarlyExecutionRequest,
   );
 }
 
