@@ -161,6 +161,7 @@ export interface Settings {
   vatRegime?: 'unspecified' | 'franchise' | 'standard';
   vatExemptionText?: string;
   showCgv?: boolean;
+  cgvDeliveryMode?: 'annex' | 'qr';
   customCgvB2c?: string | null;
   customCgvB2b?: string | null;
   mediatorName?: string | null;
