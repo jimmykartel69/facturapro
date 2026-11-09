@@ -141,6 +141,9 @@ export function DevisList() {
                 <TableBody>
                   {devis.map((d) => {
                     const totals = calculateTotals(d.items);
+                    const displayedTotal = d.targetTotalTtc != null
+                      ? d.targetTotalTtc
+                      : Math.round(totals.totalTtc * (1 - (d.globalDiscount || 0) / 100) * 100) / 100;
                     return (
                       <TableRow key={d.id} className={selectedDevisId === d.id ? 'bg-muted/50' : ''}>
                         <TableCell className="font-mono text-xs font-medium">{d.number}</TableCell>
@@ -153,7 +156,7 @@ export function DevisList() {
                         <TableCell className="text-sm">{formatDate(d.issueDate)}</TableCell>
                         <TableCell className="text-sm">{formatDate(d.validUntil)}</TableCell>
                         <TableCell>{getDevisStatusBadge(d.status as DevisStatus)}</TableCell>
-                        <TableCell className="text-right text-sm font-medium">{formatCurrency(totals.totalTtc)}</TableCell>
+                        <TableCell className="text-right text-sm font-medium">{formatCurrency(displayedTotal)}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedDevisId(d.id === selectedDevisId ? null : d.id)} title="Voir">
