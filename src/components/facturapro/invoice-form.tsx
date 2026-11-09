@@ -106,7 +106,7 @@ export function InvoiceForm({ editingInvoiceId }: InvoiceFormProps) {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const totals = calculateTotals(items);
+  const totals = calculateTotals(items.map((item) => ({ ...item, tvaRate: vatExempt ? 0 : item.tvaRate })));
   const discountAmount = totals.totalTtc * (globalDiscount / 100);
   const finalTotal = totals.totalTtc - discountAmount;
 
