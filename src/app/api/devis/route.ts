@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
 import { siteReferenceSchema } from '@/lib/site-reference';
+import { resolveQuotePricing } from '@/lib/devis-pricing';
 import { parseBillingItems } from '@/lib/billing-input';
 
 export async function GET(request: NextRequest) {
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { clientId, items, notes, globalDiscount, validUntil, status } = body;
+    const { clientId, items, notes, globalDiscount, targetTotalTtc, showEarlyExecutionRequest, validUntil, status } = body;
 
     if (!clientId) {
       return NextResponse.json({ error: 'Client requis' }, { status: 400 });
@@ -98,12 +99,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Date de validité invalide' }, { status: 400 });
     }
 
-    const discount = Number(globalDiscount ?? 0);
-    if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
-      return NextResponse.json(
-        { error: 'La remise globale doit être comprise entre 0 et 100' },
-        { status: 400 },
-      );
+    if (showEarlyExecutionRequest !== undefined && typeof showEarlyExecutionRequest !== 'boolean') {
+      return NextResponse.json({ error: "L'option d'exécution anticipée est invalide" }, { status: 400 });
+    }
+
+    let pricing: ReturnType<typeof resolveQuotePricing>;
+    try {
+      pricing = resolveQuotePricing(items, globalDiscount, targetTotalTtc, user.vatRegime === 'franchise');
+    } catch (error) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 400 });
     }
 
     const devis = await db.$transaction(async (tx) => {
@@ -124,7 +128,9 @@ export async function POST(request: NextRequest) {
           validUntil: validDate,
           notes: notes || null,
           siteReference: referenceResult.data ?? null,
-          globalDiscount: discount,
+          globalDiscount: pricing.globalDiscount,
+          targetTotalTtc: pricing.targetTotalTtc,
+          showEarlyExecutionRequest: showEarlyExecutionRequest === true,
           items: {
             create: parsedItems.items.map((item) => ({
               designation: item.designation,
