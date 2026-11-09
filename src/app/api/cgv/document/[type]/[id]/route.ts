@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
 import { prepareCgvQr } from '@/lib/pdf';
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 // Authenticated owner download, distinct from the public unguessable QR link.
 export async function GET(
-  request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ type: string; id: string }> },
 ) {
   const user = await getCurrentUser();
@@ -50,8 +50,7 @@ export async function GET(
     return NextResponse.json({ error: 'Aucune CGV applicable : vérifiez les paramètres CGV B2C/B2B.' }, { status: 422 });
   }
 
-  return NextResponse.redirect(new URL('/api/cgv/' + snapshot.token + '/pdf', request.url), {
-    status: 307,
+  return NextResponse.json({ downloadUrl: '/api/cgv/' + snapshot.token + '/pdf' }, {
     headers: { 'Cache-Control': 'private, no-store' },
   });
 }
