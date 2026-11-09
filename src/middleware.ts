@@ -28,8 +28,8 @@ export async function middleware(request: NextRequest) {
 
   // Only versioned, unguessable CGV content is public. Owner endpoints
   // (/api/cgv/document/...) remain protected and validated by their handler.
-  if (/^\\/cgv\\/[0-9a-f-]{36}\\/?$/i.test(pathname) ||
-      /^\\/api\\/cgv\\/[0-9a-f-]{36}\\/pdf\\/?$/i.test(pathname)) {
+  if (/^\/cgv\/[0-9a-f-]{36}\/?$/i.test(pathname) ||
+      /^\/api\/cgv\/[0-9a-f-]{36}\/pdf\/?$/i.test(pathname)) {
     return NextResponse.next();
   }
 
