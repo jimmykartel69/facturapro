@@ -338,7 +338,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
           {/* Totals */}
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Total HT</span>
+              <span>{vatExempt ? 'Total TTC brut' : 'Total HT brut'}</span>
               <span className="font-medium">{formatCurrency(totals.totalHt)}</span>
             </div>
             {!vatExempt && Object.entries(totals.tvaDetails).map(([rate, amount]) => (
