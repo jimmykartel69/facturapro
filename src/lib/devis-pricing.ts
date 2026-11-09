@@ -6,14 +6,14 @@
 export interface QuotePriceLine {
   quantity: number;
   unitPrice: number;
-  tvaRate: number;
+  tvaRate?: number;
 }
 
 export function quoteGrossTtc(items: QuotePriceLine[], vatExempt = false): number {
   return items.reduce((sum, item) => {
     const quantity = Number(item.quantity);
     const price = Number(item.unitPrice);
-    const vat = vatExempt ? 0 : Number(item.tvaRate);
+    const vat = vatExempt ? 0 : Number(item.tvaRate ?? 20);
     if (![quantity, price, vat].every(Number.isFinite)) return NaN;
     return sum + quantity * price * (1 + vat / 100);
   }, 0);
