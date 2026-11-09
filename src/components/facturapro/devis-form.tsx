@@ -425,6 +425,21 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                   Le client doit cocher et signer lui-même ; cette option ne vaut pas accord.
                   Retirez toute ancienne copie de cette clause des notes pour éviter un doublon.
                 </p>
+                {showEarlyExecutionRequest && (
+                  <div className="space-y-2 rounded-md bg-muted/50 p-3 text-xs leading-relaxed">
+                    <p className="font-semibold">☐ DEMANDE EXPRESSE D&apos;EXÉCUTION ANTICIPÉE</p>
+                    <p>
+                      Je demande expressément à NEOVOLT de commencer les prestations avant
+                      l&apos;expiration du délai légal de rétractation de 14 jours, lorsqu&apos;il est applicable.
+                    </p>
+                    <p>
+                      Je reconnais avoir été informé qu&apos;après exécution intégrale de la prestation
+                      de services, je perdrai mon droit de rétractation pour cette prestation,
+                      conformément aux dispositions légales applicables.
+                    </p>
+                    <p className="font-medium">Date : __________ Signature du client : ____________________</p>
+                  </div>
+                )}
               </div>
             </div>
             <div className="space-y-2">
