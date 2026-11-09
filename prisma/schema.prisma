@@ -63,6 +63,7 @@ model User {
   vatRegime              String  @default("unspecified")
   vatExemptionText       String  @default("TVA non applicable, article 293 B du CGI.")
   showCgv                Boolean @default(false)
+  cgvDeliveryMode        String  @default("annex") // annex or qr
   customCgvB2c           String?
   customCgvB2b           String?
   mediatorName           String?
@@ -82,6 +83,7 @@ model User {
   invoices  Invoice[]
   invoiceArchives InvoiceArchive[]
   creditNotes CreditNote[]
+  cgvSnapshots CgvSnapshot[]
 }
 
 model Client {
@@ -233,4 +235,24 @@ model CreditNote {
   @@index([userId])
   @@index([invoiceId])
   @@unique([userId, number])
+}
+
+// Immutable per-document CGV content. The public token only exposes terms,
+// never customer names, billing amounts or other document data.
+model CgvSnapshot {
+  id String @id @default(cuid())
+  token String @unique @default(uuid())
+  userId String
+  documentType String
+  documentId String
+  clientType String
+  companyName String
+  content String @db.Text
+  version String @db.VarChar(64)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentType, documentId])
+  @@index([userId])
 }
