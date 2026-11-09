@@ -75,6 +75,10 @@ export async function PUT(request: NextRequest) {
         }),
         ...(body.vatExemptionText !== undefined && { vatExemptionText: body.vatExemptionText }),
         ...(body.showCgv !== undefined && { showCgv: Boolean(body.showCgv) }),
+        ...(body.cgvDeliveryMode !== undefined && {
+          cgvDeliveryMode: ['annex', 'qr'].includes(body.cgvDeliveryMode)
+            ? body.cgvDeliveryMode : 'annex',
+        }),
         ...(body.customCgvB2c !== undefined && { customCgvB2c: body.customCgvB2c }),
         ...(body.customCgvB2b !== undefined && { customCgvB2b: body.customCgvB2b }),
         ...(body.mediatorName !== undefined && { mediatorName: body.mediatorName }),
