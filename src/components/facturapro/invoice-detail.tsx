@@ -89,6 +89,25 @@ export function InvoiceDetail() {
     if (!selectedInvoiceId) return;
     window.open(`/api/invoices/${selectedInvoiceId}/pdf`, '_blank');
   };
+  const handleCgvDownload = async () => {
+    if (!selectedInvoiceId) return;
+    setActionLoading('cgv');
+    try {
+      const response = await fetch(`/api/cgv/document/invoice/${selectedInvoiceId}`);
+      const payload = await response.json();
+      if (!response.ok || !payload.downloadUrl) {
+        alert(payload.error || 'CGV indisponibles.');
+        return;
+      }
+      // Content-Disposition: attachment keeps the document page in place.
+      window.location.assign(payload.downloadUrl);
+    } catch {
+      alert('Impossible de télécharger les CGV.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
 
   const handleDelete = async () => {
     if (!selectedInvoiceId) return;
@@ -158,6 +177,12 @@ export function InvoiceDetail() {
             <Download className="w-4 h-4 mr-1.5" />
             Télécharger PDF
           </Button>
+          {settings?.showCgv && settings.cgvDeliveryMode === 'qr' && (
+            <Button variant="outline" size="sm" onClick={handleCgvDownload} disabled={!!actionLoading}>
+              {actionLoading === 'cgv' ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5" />}
+              Télécharger CGV
+            </Button>
+          )}
           {invoice.status === 'draft' && (
             <Button variant="outline" size="sm" onClick={() => handleStatus('sent')} disabled={!!actionLoading}>
               {actionLoading === 'sent' ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Send className="w-4 h-4 mr-1.5" />}
