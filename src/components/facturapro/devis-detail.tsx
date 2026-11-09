@@ -129,8 +129,10 @@ export function DevisDetail() {
   if (!devis) return null;
 
   const totals = calculateTotals(devis.items);
-  const discountAmount = totals.totalTtc * (devis.globalDiscount / 100);
-  const finalTotal = totals.totalTtc - discountAmount;
+  const finalTotal = devis.targetTotalTtc != null
+    ? devis.targetTotalTtc
+    : Math.round(totals.totalTtc * (1 - devis.globalDiscount / 100) * 100) / 100;
+  const discountAmount = totals.totalTtc - finalTotal;
   const canEdit = devis.status !== 'converted';
 
   return (
@@ -261,7 +263,7 @@ export function DevisDetail() {
               <Separator />
               <div className="flex justify-between text-sm font-semibold"><span>Total TTC</span><span>{formatCurrency(totals.totalTtc)}</span></div>
               {devis.globalDiscount > 0 && (
-                <div className="flex justify-between text-sm text-emerald-600"><span>Remise ({devis.globalDiscount}%)</span><span>-{formatCurrency(discountAmount)}</span></div>
+                <div className="flex justify-between text-sm text-emerald-600"><span>Remise ({devis.globalDiscount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%)</span><span>-{formatCurrency(discountAmount)}</span></div>
               )}
               <div className="flex justify-between text-lg font-bold"><span>Net à payer</span><span>{formatCurrency(finalTotal)}</span></div>
             </div>
