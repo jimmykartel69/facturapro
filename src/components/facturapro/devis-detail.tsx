@@ -42,6 +42,7 @@ interface DevisDetailFull extends Devis {
 
 export function DevisDetail() {
   const {
+    settings,
     selectedDevisId,
     setSelectedDevisId,
     updateDevisStatus,
@@ -128,6 +129,8 @@ export function DevisDetail() {
 
   if (!devis) return null;
 
+  const vatExempt = settings?.vatRegime === 'franchise';
+  const priceLabel = vatExempt ? 'TTC' : 'HT';
   const totals = calculateTotals(devis.items);
   const finalTotal = devis.targetTotalTtc != null
     ? devis.targetTotalTtc
@@ -233,9 +236,9 @@ export function DevisDetail() {
                 <TableHead className="hidden sm:table-cell">Description</TableHead>
                 <TableHead className="text-right">Qté</TableHead>
                 <TableHead className="hidden sm:table-cell">Unité</TableHead>
-                <TableHead className="text-right">P.U. HT</TableHead>
-                <TableHead className="hidden sm:table-cell text-right">TVA</TableHead>
-                <TableHead className="text-right">Total HT</TableHead>
+                <TableHead className="text-right">P.U. {priceLabel}</TableHead>
+                {!vatExempt && <TableHead className="hidden sm:table-cell text-right">TVA</TableHead>}
+                <TableHead className="text-right">Total {priceLabel}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -246,7 +249,7 @@ export function DevisDetail() {
                   <TableCell className="text-right text-sm">{item.quantity}</TableCell>
                   <TableCell className="hidden sm:table-cell text-sm">{item.unit}</TableCell>
                   <TableCell className="text-right text-sm">{formatCurrency(item.unitPrice)}</TableCell>
-                  <TableCell className="hidden sm:table-cell text-right text-sm">{item.tvaRate}%</TableCell>
+                  {!vatExempt && <TableCell className="hidden sm:table-cell text-right text-sm">{item.tvaRate}%</TableCell>}
                   <TableCell className="text-right text-sm font-medium">{formatCurrency(item.quantity * item.unitPrice)}</TableCell>
                 </TableRow>
               ))}
@@ -255,11 +258,11 @@ export function DevisDetail() {
           <Separator className="my-4" />
           <div className="flex justify-end">
             <div className="w-72 space-y-2">
-              <div className="flex justify-between text-sm"><span>Total HT</span><span>{formatCurrency(totals.totalHt)}</span></div>
-              {Object.entries(totals.tvaDetails).map(([rate, amount]) => (
+              <div className="flex justify-between text-sm"><span>{vatExempt ? 'Total TTC brut' : 'Total HT brut'}</span><span>{formatCurrency(totals.totalHt)}</span></div>
+              {!vatExempt && Object.entries(totals.tvaDetails).map(([rate, amount]) => (
                 <div key={rate} className="flex justify-between text-sm text-muted-foreground"><span>TVA {rate}%</span><span>{formatCurrency(amount)}</span></div>
               ))}
-              <div className="flex justify-between text-sm"><span>Total TVA</span><span>{formatCurrency(totals.totalTva)}</span></div>
+              <div className="flex justify-between text-sm"><span>{vatExempt ? 'TVA non applicable' : 'Total TVA'}</span><span>{formatCurrency(totals.totalTva)}</span></div>
               <Separator />
               <div className="flex justify-between text-sm font-semibold"><span>Total TTC</span><span>{formatCurrency(totals.totalTtc)}</span></div>
               {devis.globalDiscount > 0 && (
