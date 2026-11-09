@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
 import { siteReferenceSchema } from '@/lib/site-reference';
 import { parseBillingItems } from '@/lib/billing-input';
+import { resolveQuotePricing } from '@/lib/devis-pricing';
 
 export async function GET(
   request: NextRequest,
@@ -94,6 +95,30 @@ export async function PUT(
     if (parsedItems && !parsedItems.ok) {
       return NextResponse.json({ error: parsedItems.error }, { status: 400 });
     }
+    if (body.showEarlyExecutionRequest !== undefined && typeof body.showEarlyExecutionRequest !== 'boolean') {
+      return NextResponse.json({ error: "L'option d'exécution anticipée est invalide" }, { status: 400 });
+    }
+
+    const pricingChanged = body.items !== undefined || body.globalDiscount !== undefined || body.targetTotalTtc !== undefined;
+    let pricing: ReturnType<typeof resolveQuotePricing> | undefined;
+    if (pricingChanged) {
+      const pricingItems = parsedItems?.ok
+        ? parsedItems.items
+        : await db.devisItem.findMany({
+            where: { devisId: id },
+            select: { quantity: true, unitPrice: true, tvaRate: true },
+          });
+      try {
+        pricing = resolveQuotePricing(
+          pricingItems,
+          body.globalDiscount ?? existing.globalDiscount,
+          body.targetTotalTtc !== undefined ? body.targetTotalTtc : existing.targetTotalTtc,
+          user.vatRegime === 'franchise',
+        );
+      } catch (error) {
+        return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+      }
+    }
 
     const devis = await db.devis.update({
       where: { id, userId: user.id, status: { not: 'converted' } },
@@ -103,7 +128,8 @@ export async function PUT(
         ...(body.validUntil !== undefined && { validUntil: new Date(body.validUntil) }),
         ...(body.siteReference !== undefined && { siteReference: referenceResult.data ?? null }),
         ...(body.notes !== undefined && { notes: body.notes }),
-        ...(body.globalDiscount !== undefined && { globalDiscount: body.globalDiscount }),
+        ...(pricing !== undefined && { globalDiscount: pricing.globalDiscount, targetTotalTtc: pricing.targetTotalTtc }),
+        ...(body.showEarlyExecutionRequest !== undefined && { showEarlyExecutionRequest: body.showEarlyExecutionRequest }),
         ...(parsedItems?.ok && {
           items: {
             deleteMany: {},
