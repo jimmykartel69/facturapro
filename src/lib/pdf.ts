@@ -880,13 +880,13 @@ function drawTableHeader(ctx: Ctx, cols: ColWidths): void {
   cx += cols.qty;
   doc.text('Unité', cx + 2, ctx.y + 8, { width: cols.unit - 4, align: 'center' });
   cx += cols.unit;
-  doc.text('P.U. HT', cx + 2, ctx.y + 8, { width: cols.pu - 4, align: 'right' });
+  doc.text(ctx.ae ? 'P.U. TTC' : 'P.U. HT', cx + 2, ctx.y + 8, { width: cols.pu - 4, align: 'right' });
   cx += cols.pu;
   if (!ctx.ae && cols.tva) {
     doc.text('TVA', cx + 2, ctx.y + 8, { width: cols.tva - 4, align: 'center' });
     cx += cols.tva;
   }
-  doc.text('Total HT', cx + 2, ctx.y + 8, { width: cols.total - 8, align: 'right' });
+  doc.text(ctx.ae ? 'Total TTC' : 'Total HT', cx + 2, ctx.y + 8, { width: cols.total - 8, align: 'right' });
 
   ctx.y += h;
 }
@@ -1096,7 +1096,7 @@ function drawNotesBlock(ctx: Ctx): void {
 function drawTotals(ctx: Ctx): void {
   const { doc, totals } = ctx;
   const rows: Array<{ label: string; value: string }> = [
-    { label: 'Total HT brut', value: fmtCur(totals.grossHt) },
+    { label: ctx.ae ? 'Total TTC brut' : 'Total HT brut', value: fmtCur(totals.grossHt) },
   ];
 
   if (totals.discountAmount > 0) {
@@ -1106,7 +1106,7 @@ function drawTotals(ctx: Ctx): void {
     });
   }
 
-  rows.push({ label: 'Total HT net', value: fmtCur(totals.netHt) });
+  rows.push({ label: ctx.ae ? 'Total TTC net' : 'Total HT net', value: fmtCur(totals.netHt) });
 
   if (!ctx.ae) {
     for (const vat of totals.vatByRate) {
