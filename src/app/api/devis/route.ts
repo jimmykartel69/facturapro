@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     let pricing: ReturnType<typeof resolveQuotePricing>;
     try {
-      pricing = resolveQuotePricing(items, globalDiscount, targetTotalTtc, user.vatRegime === 'franchise');
+      pricing = resolveQuotePricing(parsedItems.items, globalDiscount, targetTotalTtc, user.vatRegime === 'franchise');
     } catch (error) {
       return NextResponse.json({ error: (error as Error).message }, { status: 400 });
     }
