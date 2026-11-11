@@ -1,41 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
-
-const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-
-interface InvoiceLike {
-  globalDiscount: number;
-  targetTotalTtc?: number | null;
-  items: Array<{
-    quantity: number;
-    unitPrice: number;
-    tvaRate: number;
-  }>;
-}
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function computeInvoiceTotalTtc(invoice: InvoiceLike): number {
-  if (invoice.targetTotalTtc != null) return round2(invoice.targetTotalTtc);
-  const grossHt = invoice.items.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice,
-    0
-  );
-  const discountRate = Math.min(100, Math.max(0, invoice.globalDiscount || 0));
-  const discountAmount = grossHt * (discountRate / 100);
-  const netHt = Math.max(0, grossHt - discountAmount);
-  const ratio = grossHt > 0 ? netHt / grossHt : 1;
-
-  const totalTva = invoice.items.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice * ratio * (item.tvaRate / 100),
-    0
-  );
-
-  return round2(netHt + totalTva);
-}
+import { loadRevenueOverview } from '@/lib/revenue-data';
+import { computeDocumentTotalTtc, currentRevenueYear, roundAmount } from '@/lib/revenue';
 
 export async function GET() {
   try {
@@ -45,27 +12,12 @@ export async function GET() {
     }
 
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-    const startOfYear = new Date(currentYear, 0, 1);
-    const startOfNextYear = new Date(currentYear + 1, 0, 1);
+    const currentYear = currentRevenueYear(now);
+    const currentMonth = Number(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', month: 'numeric' }).format(now)) - 1;
 
-    const [paidInvoicesYear, unpaidInvoicesData, devisCount, activeClients, recentInvoicesRaw, recentDevisRaw] =
+    const [revenueOverview, unpaidInvoicesData, devisCount, activeClients, recentInvoicesRaw, recentDevisRaw] =
       await Promise.all([
-        db.invoice.findMany({
-          where: {
-            userId: user.id,
-            status: 'paid',
-            issueDate: { gte: startOfYear, lt: startOfNextYear },
-          },
-          select: {
-            issueDate: true,
-            globalDiscount: true,
-            items: {
-              select: { quantity: true, unitPrice: true, tvaRate: true },
-            },
-          },
-        }),
+        loadRevenueOverview(user.id, currentYear, currentYear),
         db.invoice.findMany({
           where: {
             userId: user.id,
@@ -120,23 +72,14 @@ export async function GET() {
         }),
       ]);
 
-    const monthlyTotals = Array.from({ length: 12 }, () => 0);
-    for (const invoice of paidInvoicesYear) {
-      const monthIndex = new Date(invoice.issueDate).getMonth();
-      monthlyTotals[monthIndex] += computeInvoiceTotalTtc(invoice);
-    }
-
-    const monthlyRevenue: { month: string; revenue: number }[] = MONTH_NAMES.map((month, index) => ({
-      month,
-      revenue: round2(monthlyTotals[index]),
-    }));
+    const monthlyRevenue = revenueOverview.monthlyRevenue;
 
     // Current month revenue
     const currentMonthRevenue = monthlyRevenue[currentMonth].revenue;
 
     const unpaidInvoices = unpaidInvoicesData.length;
-    const unpaidAmount = round2(
-      unpaidInvoicesData.reduce((sum, invoice) => sum + computeInvoiceTotalTtc(invoice), 0)
+    const unpaidAmount = roundAmount(
+      unpaidInvoicesData.reduce((sum, invoice) => sum + computeDocumentTotalTtc(invoice), 0)
     );
 
     const recentInvoices = recentInvoicesRaw.map((invoice) => ({
@@ -144,7 +87,7 @@ export async function GET() {
       number: invoice.number,
       status: invoice.status,
       client: invoice.client,
-      totalTtc: computeInvoiceTotalTtc(invoice),
+      totalTtc: computeDocumentTotalTtc(invoice),
     }));
 
     const recentDevis = recentDevisRaw.map((devis) => ({
@@ -152,7 +95,7 @@ export async function GET() {
       number: devis.number,
       status: devis.status,
       client: devis.client,
-      totalTtc: computeInvoiceTotalTtc(devis),
+      totalTtc: computeDocumentTotalTtc(devis),
     }));
 
     return NextResponse.json({
@@ -162,6 +105,7 @@ export async function GET() {
       unpaidAmount,
       activeClients,
       monthlyRevenue,
+      revenueOverview,
       recentInvoices,
       recentDevis,
     });

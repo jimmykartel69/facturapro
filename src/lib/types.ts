@@ -88,6 +88,15 @@ export interface Invoice {
   createdAt: string;
 }
 
+export interface RevenueOverviewData {
+  year: number;
+  currentYear: number;
+  availableYears: number[];
+  annualRevenue: number;
+  paidInvoiceCount: number;
+  monthlyRevenue: { month: string; revenue: number; cumulativeRevenue: number }[];
+}
+
 export interface DashboardData {
   currentMonthRevenue: number;
   devisCount: number;
@@ -95,6 +104,7 @@ export interface DashboardData {
   unpaidAmount: number;
   activeClients: number;
   monthlyRevenue: { month: string; revenue: number }[];
+  revenueOverview: RevenueOverviewData;
   recentInvoices: DashboardInvoicePreview[];
   recentDevis: DashboardDevisPreview[];
 }

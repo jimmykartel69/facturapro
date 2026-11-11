@@ -13,10 +13,10 @@ export function useDebouncedSearch(value: string) {
   return search;
 }
 
-export function useApiQuery<T>(path: string) {
+export function useApiQuery<T>(path: string, enabled = true) {
   const userId = useAppStore(s => s.user?.id);
   return useQuery<T>({
-    queryKey: [userId, path], enabled: Boolean(userId),
+    queryKey: [userId, path], enabled: Boolean(userId) && enabled,
     queryFn: async ({ signal }) => {
       const response = await fetch(path, { signal, cache: 'no-store', credentials: 'include' });
       if (response.status === 401) {

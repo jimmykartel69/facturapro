@@ -9,8 +9,6 @@ import {
   AlertTriangle,
   Users,
   Plus,
-  TrendingUp,
-  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,15 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import { RevenueOverview } from './revenue-overview';
 import { useApiQuery } from '@/hooks/use-api-query';
 import type { DashboardData } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
@@ -58,13 +48,6 @@ export function Dashboard() {
     { title: 'Factures impayées', value: dashboardData.unpaidInvoices.toString(), subtitle: formatCurrency(dashboardData.unpaidAmount), icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
     { title: 'Clients actifs', value: dashboardData.activeClients.toString(), icon: Users, color: 'text-violet-600', bg: 'bg-violet-50' },
   ];
-
-  const chartGridColor = 'var(--border)';
-  const chartAxisTextColor = 'var(--muted-foreground)';
-  const chartBarColor = 'var(--primary)';
-  const chartTooltipBorder = '1px solid var(--border)';
-  const chartTooltipBg = 'var(--card)';
-  const chartTooltipText = 'var(--foreground)';
 
   return (
     <div className="space-y-6">
@@ -107,31 +90,7 @@ export function Dashboard() {
         })}
       </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
-            Chiffre d&apos;affaires mensuel
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dashboardData.monthlyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: chartAxisTextColor }} axisLine={{ stroke: chartGridColor }} tickLine={{ stroke: chartGridColor }} />
-                <YAxis tick={{ fontSize: 12, fill: chartAxisTextColor }} axisLine={{ stroke: chartGridColor }} tickLine={{ stroke: chartGridColor }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip
-                  formatter={(value: number) => [formatCurrency(value), 'CA']}
-                  labelStyle={{ fontWeight: 600, color: chartTooltipText }}
-                  contentStyle={{ borderRadius: 8, border: chartTooltipBorder, background: chartTooltipBg, color: chartTooltipText }}
-                />
-                <Bar dataKey="revenue" fill={chartBarColor} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+      <RevenueOverview initial={dashboardData.revenueOverview} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
@@ -159,7 +118,7 @@ export function Dashboard() {
                 ) : (
                   dashboardData.recentInvoices.map((inv) => {
                     return (
-                      <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedInvoiceId(inv.id); setPage('invoices'); }}>
+                      <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setPage('invoices'); setSelectedInvoiceId(inv.id); }}>
                         <TableCell className="font-mono text-xs">{inv.number}</TableCell>
                         <TableCell className="text-sm">{inv.client.company || inv.client.name}</TableCell>
                         <TableCell>{getInvoiceStatusBadge(inv.status as InvoiceStatus)}</TableCell>
@@ -198,7 +157,7 @@ export function Dashboard() {
                 ) : (
                   dashboardData.recentDevis.map((d) => {
                     return (
-                      <TableRow key={d.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedDevisId(d.id); setPage('devis'); }}>
+                      <TableRow key={d.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setPage('devis'); setSelectedDevisId(d.id); }}>
                         <TableCell className="font-mono text-xs">{d.number}</TableCell>
                         <TableCell className="text-sm">{d.client.company || d.client.name}</TableCell>
                         <TableCell>{getDevisStatusBadge(d.status as DevisStatus)}</TableCell>
