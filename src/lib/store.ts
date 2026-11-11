@@ -1,5 +1,8 @@
+import { clearAccountCache, invalidateBillingData, queryClient } from './query-client';
 import { create } from 'zustand';
 import { Page, Client, Devis, Invoice, DashboardData, Settings, DevisStatus, InvoiceStatus } from './types';
+
+let authenticationVersion = 0;
 
 interface AppState {
   // Auth
@@ -38,9 +41,6 @@ interface AppState {
 
   // Data fetch actions
   fetchClients: (search?: string) => Promise<void>;
-  fetchDevis: (status?: string, search?: string) => Promise<void>;
-  fetchInvoices: (status?: string, search?: string) => Promise<void>;
-  fetchDashboard: () => Promise<void>;
   fetchSettings: () => Promise<void>;
 
   // CRUD actions
@@ -110,6 +110,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Auth actions
   fetchSession: async () => {
+    const version = ++authenticationVersion;
     set({ authLoading: true });
     try {
       const res = await fetch('/api/auth/session', {
@@ -118,21 +119,27 @@ export const useAppStore = create<AppState>((set, get) => ({
         cache: 'no-store',
       });
       const data = await res.json();
+      if (version !== authenticationVersion) return;
       if (data.user) {
+        if (get().user?.id !== data.user.id) clearAccountCache();
         set({
           user: data.user,
           isAuthenticated: true,
           authLoading: false,
         });
       } else {
+        clearAccountCache();
         set({ user: null, isAuthenticated: false, authLoading: false });
       }
     } catch {
+      if (version !== authenticationVersion) return;
+      clearAccountCache();
       set({ user: null, isAuthenticated: false, authLoading: false });
     }
   },
 
   login: async (email, password) => {
+    const version = ++authenticationVersion;
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -141,7 +148,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
+      if (version !== authenticationVersion) return 'La session a changé.';
       if (!res.ok) return data.error || 'Erreur lors de la connexion';
+      clearAccountCache();
       set({ user: data.user, isAuthenticated: true });
       return null;
     } catch {
@@ -150,6 +159,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   register: async (name, firstName, email, password) => {
+    const version = ++authenticationVersion;
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -158,7 +168,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         body: JSON.stringify({ name, firstName, email, password }),
       });
       const data = await res.json();
+      if (version !== authenticationVersion) return 'La session a changé.';
       if (!res.ok) return data.error || "Erreur lors de l'inscription";
+      clearAccountCache();
       set({ user: data.user, isAuthenticated: true });
       return null;
     } catch {
@@ -167,26 +179,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   logout: async () => {
+    authenticationVersion++;
+    clearAccountCache();
+    set({ user: null, isAuthenticated: false, authLoading: false, currentPage: 'dashboard', clients: [], devis: [], invoices: [], settings: null, dashboardData: null, showClientForm: false, showDevisForm: false, showInvoiceForm: false, editingClientId: null, editingDevisId: null, editingInvoiceId: null, selectedClientId: null, selectedDevisId: null, selectedInvoiceId: null });
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch {
-      // ignore
+      // Local credentials and data are already cleared.
     }
-    set({
-      user: null,
-      isAuthenticated: false,
-      clients: [],
-      devis: [],
-      invoices: [],
-      dashboardData: null,
-      settings: null,
-      currentPage: 'dashboard',
-    });
+
   },
 
   // Helper: handle auth errors from API responses
   handleAuthError: (res: Response) => {
     if (res.status === 401) {
+      authenticationVersion++;
+      clearAccountCache();
       set({
         user: null,
         isAuthenticated: false,
@@ -196,6 +204,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         invoices: [],
         dashboardData: null,
         settings: null,
+        showClientForm: false, showDevisForm: false, showInvoiceForm: false,
+        editingClientId: null, editingDevisId: null, editingInvoiceId: null,
+        selectedClientId: null, selectedDevisId: null, selectedInvoiceId: null,
       });
       // Don't redirect - let the SPA handle it via fetchSession
       return true;
@@ -205,70 +216,54 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Data fetch
   fetchClients: async (search?: string) => {
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set('search', search);
-      const res = await fetch(`/api/clients?${params.toString()}`);
-      if (get().handleAuthError(res)) return;
-      const data = await res.json();
-      if (res.ok) set({ clients: data.clients || [] });
-    } catch {
-      // ignore
-    }
-  },
-
-  fetchDevis: async (status?: string, search?: string) => {
-    try {
-      const params = new URLSearchParams();
-      if (status) params.set('status', status);
-      if (search) params.set('search', search);
-      const res = await fetch(`/api/devis?${params.toString()}`);
-      if (get().handleAuthError(res)) return;
-      const data = await res.json();
-      if (res.ok) set({ devis: data.devis || [] });
-    } catch {
-      // ignore
-    }
-  },
-
-  fetchInvoices: async (status?: string, search?: string) => {
-    try {
-      const params = new URLSearchParams();
-      if (status) params.set('status', status);
-      if (search) params.set('search', search);
-      const res = await fetch(`/api/invoices?${params.toString()}`);
-      if (get().handleAuthError(res)) return;
-      const data = await res.json();
-      if (res.ok) set({ invoices: data.invoices || [] });
-    } catch {
-      // ignore
-    }
-  },
-
-  fetchDashboard: async () => {
-    try {
-      const res = await fetch('/api/dashboard');
-      if (get().handleAuthError(res)) return;
-      const data = await res.json();
-      if (res.ok) set({ dashboardData: data });
-    } catch {
-      // ignore
-    }
+    const account = get().user?.id;
+    const version = authenticationVersion;
+    if (!account) return;
+    const clients = await queryClient.fetchQuery<Client[]>({
+      queryKey: [account, 'client-options', search || ''],
+      queryFn: async ({ signal }) => {
+        const clients: Client[] = [];
+        let page = 1;
+        while (true) {
+          const params = new URLSearchParams({ page: String(page), search: search || '' });
+          const res = await fetch(`/api/clients?${params}`, { cache: 'no-store', signal });
+          if (version !== authenticationVersion) throw new Error('Session modifiée');
+          if (get().handleAuthError(res)) throw new Error('Session expirée');
+          if (!res.ok) throw new Error('Impossible de charger les clients');
+          const data = await res.json();
+          clients.push(...data.clients);
+          if (!data.pagination?.hasNext) return clients;
+          page++;
+        }
+      },
+    });
+    if (version === authenticationVersion) set({ clients });
   },
 
   fetchSettings: async () => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
+    if (!account) return;
     try {
-      const res = await fetch('/api/settings');
-      if (get().handleAuthError(res)) return;
-      const data = await res.json();
-      if (res.ok) set({ settings: data.settings });
+      const data = await queryClient.fetchQuery<{ settings: Settings }>({
+        queryKey: [account, '/api/settings'],
+        queryFn: async ({ signal }) => {
+          const res = await fetch('/api/settings', { signal, cache: 'no-store' });
+          if (version !== authenticationVersion) throw new Error('Session modifiée');
+          if (get().handleAuthError(res) || !res.ok) throw new Error('Paramètres indisponibles');
+          return res.json();
+        },
+      });
+      if (version === authenticationVersion) set({ settings: data.settings });
     } catch {
-      // ignore
+      // Existing callers display their own unavailable-settings state.
     }
   },
 
   // Client CRUD
   createClient: async (data) => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
     try {
       const res = await fetch('/api/clients', {
         method: 'POST',
@@ -276,8 +271,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const result = await res.json();
-      if (!res.ok) return result.error || 'Erreur serveur';
-      await get().fetchClients();
+      if (version !== authenticationVersion || account !== get().user?.id) return "La session a changé. Rechargez la page.";
+      if (!res.ok) { get().handleAuthError(res); return result.error || 'Erreur serveur'; }
+      await invalidateBillingData();
+      if (version !== authenticationVersion) return "La session a changé. Rechargez la page.";
       return null;
     } catch {
       return 'Erreur réseau';
@@ -285,6 +282,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   updateClient: async (id, data) => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
     try {
       const res = await fetch(`/api/clients/${id}`, {
         method: 'PUT',
@@ -292,8 +291,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const result = await res.json();
-      if (!res.ok) return result.error || 'Erreur serveur';
-      await get().fetchClients();
+      if (version !== authenticationVersion || account !== get().user?.id) return "La session a changé. Rechargez la page.";
+      if (!res.ok) { get().handleAuthError(res); return result.error || 'Erreur serveur'; }
+      await invalidateBillingData();
+      if (version !== authenticationVersion) return "La session a changé. Rechargez la page.";
       return null;
     } catch {
       return 'Erreur réseau';
@@ -301,14 +302,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   deleteClient: async (id) => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
     try {
       const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
       const result = await res.json();
-      if (!res.ok) return result.error || 'Erreur serveur';
+      if (version !== authenticationVersion || account !== get().user?.id) return "La session a changé. Rechargez la page.";
+      if (!res.ok) { get().handleAuthError(res); return result.error || 'Erreur serveur'; }
+      await invalidateBillingData();
+      if (version !== authenticationVersion) return "La session a changé. Rechargez la page.";
       set((s) => ({
         selectedClientId: s.selectedClientId === id ? null : s.selectedClientId,
       }));
-      await get().fetchClients();
       return null;
     } catch {
       return 'Erreur réseau';
@@ -317,6 +322,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Devis CRUD
   createDevis: async (data) => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
     try {
       const res = await fetch('/api/devis', {
         method: 'POST',
@@ -324,9 +331,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const result = await res.json();
-      if (!res.ok) return result.error || 'Erreur serveur';
+      if (version !== authenticationVersion || account !== get().user?.id) return "La session a changé. Rechargez la page.";
+      if (!res.ok) { get().handleAuthError(res); return result.error || 'Erreur serveur'; }
+      await invalidateBillingData();
+      if (version !== authenticationVersion) return "La session a changé. Rechargez la page.";
       set({ showDevisForm: false, editingDevisId: null });
-      await get().fetchDevis();
       return null;
     } catch {
       return 'Erreur réseau';
@@ -334,6 +343,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   updateDevis: async (id, data) => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
     try {
       const res = await fetch(`/api/devis/${id}`, {
         method: 'PUT',
@@ -341,9 +352,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const result = await res.json();
-      if (!res.ok) return result.error || 'Erreur serveur';
+      if (version !== authenticationVersion || account !== get().user?.id) return "La session a changé. Rechargez la page.";
+      if (!res.ok) { get().handleAuthError(res); return result.error || 'Erreur serveur'; }
+      await invalidateBillingData();
+      if (version !== authenticationVersion) return "La session a changé. Rechargez la page.";
       set({ showDevisForm: false, editingDevisId: null });
-      await get().fetchDevis();
       return null;
     } catch {
       return 'Erreur réseau';
@@ -351,14 +364,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   deleteDevis: async (id) => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
     try {
       const res = await fetch(`/api/devis/${id}`, { method: 'DELETE' });
       const result = await res.json();
-      if (!res.ok) return result.error || 'Erreur serveur';
+      if (version !== authenticationVersion || account !== get().user?.id) return "La session a changé. Rechargez la page.";
+      if (!res.ok) { get().handleAuthError(res); return result.error || 'Erreur serveur'; }
+      await invalidateBillingData();
+      if (version !== authenticationVersion) return "La session a changé. Rechargez la page.";
       set((s) => ({
         selectedDevisId: s.selectedDevisId === id ? null : s.selectedDevisId,
       }));
-      await get().fetchDevis();
       return null;
     } catch {
       return 'Erreur réseau';
@@ -370,6 +387,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   convertDevisToInvoice: async (devisId) => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
     try {
       const res = await fetch('/api/convert-devis', {
         method: 'POST',
@@ -377,10 +396,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         body: JSON.stringify({ devisId }),
       });
       const result = await res.json();
-      if (!res.ok) return result.error || 'Erreur serveur';
-      await get().fetchDevis();
-      await get().fetchInvoices();
-      await get().fetchDashboard();
+      if (version !== authenticationVersion || account !== get().user?.id) return "La session a changé. Rechargez la page.";
+      if (!res.ok) { get().handleAuthError(res); return result.error || 'Erreur serveur'; }
+      await invalidateBillingData();
+      if (version !== authenticationVersion) return "La session a changé. Rechargez la page.";
       return null;
     } catch {
       return 'Erreur réseau';
@@ -389,6 +408,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Invoice CRUD
   createInvoice: async (data) => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
     try {
       const res = await fetch('/api/invoices', {
         method: 'POST',
@@ -396,9 +417,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const result = await res.json();
-      if (!res.ok) return result.error || 'Erreur serveur';
+      if (version !== authenticationVersion || account !== get().user?.id) return "La session a changé. Rechargez la page.";
+      if (!res.ok) { get().handleAuthError(res); return result.error || 'Erreur serveur'; }
+      await invalidateBillingData();
+      if (version !== authenticationVersion) return "La session a changé. Rechargez la page.";
       set({ showInvoiceForm: false, editingInvoiceId: null });
-      await get().fetchInvoices();
       return null;
     } catch {
       return 'Erreur réseau';
@@ -406,6 +429,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   updateInvoice: async (id, data) => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
     try {
       const res = await fetch(`/api/invoices/${id}`, {
         method: 'PUT',
@@ -413,9 +438,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const result = await res.json();
-      if (!res.ok) return result.error || 'Erreur serveur';
+      if (version !== authenticationVersion || account !== get().user?.id) return "La session a changé. Rechargez la page.";
+      if (!res.ok) { get().handleAuthError(res); return result.error || 'Erreur serveur'; }
+      await invalidateBillingData();
+      if (version !== authenticationVersion) return "La session a changé. Rechargez la page.";
       set({ showInvoiceForm: false, editingInvoiceId: null });
-      await get().fetchInvoices();
       return null;
     } catch {
       return 'Erreur réseau';
@@ -423,14 +450,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   deleteInvoice: async (id) => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
     try {
       const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE' });
       const result = await res.json();
-      if (!res.ok) return result.error || 'Erreur serveur';
+      if (version !== authenticationVersion || account !== get().user?.id) return "La session a changé. Rechargez la page.";
+      if (!res.ok) { get().handleAuthError(res); return result.error || 'Erreur serveur'; }
+      await invalidateBillingData();
+      if (version !== authenticationVersion) return "La session a changé. Rechargez la page.";
       set((s) => ({
         selectedInvoiceId: s.selectedInvoiceId === id ? null : s.selectedInvoiceId,
       }));
-      await get().fetchInvoices();
       return null;
     } catch {
       return 'Erreur réseau';
@@ -443,6 +474,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Settings
   updateSettings: async (data) => {
+    const account = get().user?.id;
+    const version = authenticationVersion;
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
@@ -450,7 +483,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const result = await res.json();
-      if (!res.ok) return result.error || 'Erreur serveur';
+      if (version !== authenticationVersion || account !== get().user?.id) return "La session a changé. Rechargez la page.";
+      if (!res.ok) { get().handleAuthError(res); return result.error || 'Erreur serveur'; }
+      await invalidateBillingData();
+      if (version !== authenticationVersion) return "La session a changé. Rechargez la page.";
       set({ settings: result.settings });
       return null;
     } catch {

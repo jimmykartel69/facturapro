@@ -78,6 +78,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([sessionToken])
+
   clients   Client[]
   devis     Devis[]
   invoices  Invoice[]

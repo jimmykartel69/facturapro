@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+
+import React, { useState } from 'react';
 import {
   Search,
   Plus,
@@ -34,32 +36,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useApiQuery, useDebouncedSearch } from '@/hooks/use-api-query';
+import { ListFeedback, ListPagination } from './list-feedback';
+import type { ClientWithCounts } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { formatDate } from '@/lib/helpers';
 
 export function ClientList() {
   const {
-    clients,
     selectedClientId,
-    fetchClients,
     setSelectedClientId,
     setShowClientForm,
     setEditingClientId,
     deleteClient,
-  } = useAppStore();
+  } = useAppStore(useShallow(s => ({ selectedClientId: s.selectedClientId, setSelectedClientId: s.setSelectedClientId, setShowClientForm: s.setShowClientForm, setEditingClientId: s.setEditingClientId, deleteClient: s.deleteClient })));
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const fetchIdRef = useRef(0);
-
-  useEffect(() => {
-    const id = ++fetchIdRef.current;
-    fetchClients(search).then(() => {
-      if (id === fetchIdRef.current) setLoading(false);
-    });
-    return () => { fetchIdRef.current++; };
-  }, [fetchClients, search]);
+  const deferredSearch = useDebouncedSearch(search);
+  const params = new URLSearchParams({ page: String(page), search: deferredSearch });
+  const query = useApiQuery<{ clients: ClientWithCounts[]; pagination: { hasNext: boolean } }>(`/api/clients?${params}`);
+  const clients = query.data?.clients ?? [];
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -73,20 +71,14 @@ export function ClientList() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
+      <ListFeedback error={query.error} pending={query.isFetching} retry={() => { void query.refetch(); }} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Clients</h2>
-          <p className="text-muted-foreground text-sm">{clients.length} client(s) enregistré(s)</p>
+          <p className="text-muted-foreground text-sm">{clients.length} client(s) sur cette page</p>
         </div>
         <Button onClick={() => { setShowClientForm(true); }} size="sm">
           <Plus className="w-4 h-4 mr-1.5" />
@@ -99,7 +91,7 @@ export function ClientList() {
         <Input
           placeholder="Rechercher un client..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           className="pl-9"
         />
       </div>
@@ -191,6 +183,7 @@ export function ClientList() {
         </div>
       )}
 
+      <ListPagination page={page} hasNext={query.data?.pagination.hasNext ?? false} onChange={setPage} />
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

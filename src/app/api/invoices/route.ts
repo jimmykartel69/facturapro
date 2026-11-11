@@ -1,3 +1,4 @@
+import { parsePagination } from '@/lib/pagination';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
@@ -68,6 +69,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
+    let pagination;
+    try { pagination = parsePagination(request.nextUrl.searchParams); }
+    catch { return NextResponse.json({ error: 'Page invalide' }, { status: 400 }); }
     const statusParam = request.nextUrl.searchParams.get('status')?.trim() || '';
     const search = request.nextUrl.searchParams.get('search')?.trim() || '';
 
@@ -89,7 +93,9 @@ export async function GET(request: NextRequest) {
 
     const invoiceList = await db.invoice.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: pagination.skip,
+      take: pagination.take,
       include: {
         client: {
           select: { id: true, name: true, company: true },
@@ -97,7 +103,6 @@ export async function GET(request: NextRequest) {
         items: {
           select: {
             designation: true,
-            description: true,
             quantity: true,
             unit: true,
             unitPrice: true,
@@ -107,7 +112,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ invoices: invoiceList });
+    return NextResponse.json({ invoices: invoiceList.slice(0, pagination.pageSize),
+      pagination: { page: pagination.page, hasNext: invoiceList.length > pagination.pageSize } });
   } catch (error) {
     console.error('Invoices GET error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

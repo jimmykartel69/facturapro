@@ -1,5 +1,11 @@
 'use client';
 
+import { useShallow } from 'zustand/react/shallow';
+
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/query-client';
+import dynamic from 'next/dynamic';
+import { FormLoader } from '@/components/facturapro/form-loader';
 import React, { useState, useEffect, Component, type ReactNode } from 'react';
 import { Menu, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,18 +13,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppStore } from '@/lib/store';
 import { Sidebar } from '@/components/facturapro/sidebar';
-import { Dashboard } from '@/components/facturapro/dashboard';
-import { InvoiceList } from '@/components/facturapro/invoice-list';
-import { InvoiceDetail } from '@/components/facturapro/invoice-detail';
-import { InvoiceForm } from '@/components/facturapro/invoice-form';
-import { ClientList } from '@/components/facturapro/client-list';
-import { ClientDetail } from '@/components/facturapro/client-detail';
-import { ClientForm } from '@/components/facturapro/client-form';
-import { DevisList } from '@/components/facturapro/devis-list';
-import { DevisDetail } from '@/components/facturapro/devis-detail';
-import { DevisForm } from '@/components/facturapro/devis-form';
-import { SettingsPage } from '@/components/facturapro/settings';
-import { DocumentSettingsPage } from '@/components/facturapro/document-settings';
+const Dashboard = dynamic(() => import('@/components/facturapro/dashboard').then(m => m.Dashboard), { loading: () => <p role="status">Chargement…</p> });
+const InvoiceList = dynamic(() => import('@/components/facturapro/invoice-list').then(m => m.InvoiceList), { loading: () => <p role="status">Chargement…</p> });
+const InvoiceDetail = dynamic(() => import('@/components/facturapro/invoice-detail').then(m => m.InvoiceDetail), { loading: () => <p role="status">Chargement…</p> });
+const ClientList = dynamic(() => import('@/components/facturapro/client-list').then(m => m.ClientList), { loading: () => <p role="status">Chargement…</p> });
+const ClientDetail = dynamic(() => import('@/components/facturapro/client-detail').then(m => m.ClientDetail), { loading: () => <p role="status">Chargement…</p> });
+const DevisList = dynamic(() => import('@/components/facturapro/devis-list').then(m => m.DevisList), { loading: () => <p role="status">Chargement…</p> });
+const DevisDetail = dynamic(() => import('@/components/facturapro/devis-detail').then(m => m.DevisDetail), { loading: () => <p role="status">Chargement…</p> });
+const SettingsPage = dynamic(() => import('@/components/facturapro/settings').then(m => m.SettingsPage), { loading: () => <p role="status">Chargement…</p> });
+const DocumentSettingsPage = dynamic(() => import('@/components/facturapro/document-settings').then(m => m.DocumentSettingsPage), { loading: () => <p role="status">Chargement…</p> });
 import { cn } from '@/lib/utils';
 
 // --- Error Boundary to catch rendering crashes ---
@@ -68,7 +71,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 }
 
 function LoginPage() {
-  const { login, register } = useAppStore();
+  const { login, register } = useAppStore(useShallow(s => ({ login: s.login, register: s.register })));
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -182,14 +185,14 @@ function AuthenticatedApp() {
     editingClientId,
     editingDevisId,
     editingInvoiceId,
-    fetchClients,
-  } = useAppStore();
+    showClientForm,
+    showDevisForm,
+    showInvoiceForm,
+  } = useAppStore(useShallow(s => ({ currentPage: s.currentPage, sidebarOpen: s.sidebarOpen, selectedInvoiceId: s.selectedInvoiceId, selectedClientId: s.selectedClientId, selectedDevisId: s.selectedDevisId, editingClientId: s.editingClientId, editingDevisId: s.editingDevisId, editingInvoiceId: s.editingInvoiceId, showClientForm: s.showClientForm, showDevisForm: s.showDevisForm, showInvoiceForm: s.showInvoiceForm })));
 
   const setMobileSidebarOpen = useAppStore((s) => s.setMobileSidebarOpen);
 
-  useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
+
 
   const renderCurrentPage = () => {
     switch (currentPage) {
@@ -234,15 +237,15 @@ function AuthenticatedApp() {
       </main>
 
       {/* Global dialogs - key prop forces remount when editing entity changes */}
-      <ClientForm key={editingClientId || 'new-client'} editingClientId={editingClientId} />
-      <DevisForm key={editingDevisId || 'new-devis'} editingDevisId={editingDevisId} />
-      <InvoiceForm key={editingInvoiceId || 'new-invoice'} editingInvoiceId={editingInvoiceId} />
+      {showClientForm && <FormLoader key={editingClientId || 'new-client'} kind="client" id={editingClientId} />}
+      {showDevisForm && <FormLoader key={editingDevisId || 'new-devis'} kind="devis" id={editingDevisId} />}
+      {showInvoiceForm && <FormLoader key={editingInvoiceId || 'new-invoice'} kind="invoice" id={editingInvoiceId} />}
     </div>
   );
 }
 
 export default function FacturaProApp() {
-  const { authLoading, isAuthenticated, fetchSession } = useAppStore();
+  const { authLoading, isAuthenticated, fetchSession } = useAppStore(useShallow(s => ({ authLoading: s.authLoading, isAuthenticated: s.isAuthenticated, fetchSession: s.fetchSession })));
 
   useEffect(() => {
     fetchSession();
@@ -260,5 +263,5 @@ export default function FacturaProApp() {
     return <LoginPage />;
   }
 
-  return <AuthenticatedApp />;
+  return <QueryClientProvider client={queryClient}><AuthenticatedApp /></QueryClientProvider>;
 }

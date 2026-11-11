@@ -1,3 +1,4 @@
+import { parsePagination } from '@/lib/pagination';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
@@ -9,6 +10,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
+    let pagination;
+    try { pagination = parsePagination(request.nextUrl.searchParams); }
+    catch { return NextResponse.json({ error: 'Page invalide' }, { status: 400 }); }
     const search = request.nextUrl.searchParams.get('search') || '';
 
     const where: Record<string, unknown> = { userId: user.id };
@@ -23,7 +27,9 @@ export async function GET(request: NextRequest) {
 
     const clients = await db.client.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: pagination.skip,
+      take: pagination.take,
       select: {
         id: true,
         clientType: true,
@@ -45,7 +51,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ clients });
+    return NextResponse.json({ clients: clients.slice(0, pagination.pageSize), pagination: { page: pagination.page, hasNext: clients.length > pagination.pageSize } });
   } catch (error) {
     console.error('Clients GET error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

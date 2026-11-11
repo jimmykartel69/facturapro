@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     await db.user.update({
       where: { id: user.id },
       data: {
-        passwordHash: hashPassword(password),
+        passwordHash: await hashPassword(password),
         resetToken: null,
         resetTokenExpiry: null,
         sessionToken: null,

@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useAppStore } from '@/lib/store';
@@ -91,6 +92,7 @@ export function ClientForm({ editingClientId }: ClientFormProps) {
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editingClientId ? 'Modifier le client' : 'Nouveau client'}</DialogTitle>
+          <DialogDescription className="sr-only">Renseignez les informations puis enregistrez vos modifications.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

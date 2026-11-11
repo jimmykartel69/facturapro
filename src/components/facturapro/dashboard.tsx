@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+
+import React from 'react';
 import {
   DollarSign,
   FileText,
@@ -29,70 +31,26 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useApiQuery } from '@/hooks/use-api-query';
+import type { DashboardData } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { formatCurrency, getDevisStatusBadge, getInvoiceStatusBadge } from '@/lib/helpers';
 import type { DevisStatus, InvoiceStatus } from '@/lib/types';
 
 export function Dashboard() {
   const {
-    dashboardData,
-    fetchDashboard,
     setShowDevisForm,
     setShowInvoiceForm,
     setSelectedDevisId,
     setSelectedInvoiceId,
     setPage,
-  } = useAppStore();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const fetchIdRef = useRef(0);
-
-  useEffect(() => {
-    const id = ++fetchIdRef.current;
-    fetchDashboard()
-      .then(() => {
-        if (id === fetchIdRef.current) setLoading(false);
-      })
-      .catch(() => {
-        if (id === fetchIdRef.current) {
-          setLoading(false);
-          setError('Erreur lors du chargement des données');
-        }
-      });
-    return () => { fetchIdRef.current++; };
-  }, [fetchDashboard]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (error || !dashboardData) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Tableau de bord</h2>
-          <p className="text-muted-foreground text-sm">Vue d&apos;ensemble de votre activité</p>
-        </div>
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-muted-foreground mb-4">{error || 'Aucune donnée disponible'}</p>
-          <Button variant="outline" onClick={() => {
-            setLoading(true);
-            setError(null);
-            fetchDashboard().then(() => setLoading(false)).catch(() => {
-              setLoading(false);
-              setError('Erreur lors du chargement des données');
-            });
-          }}>
-            Réessayer
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  } = useAppStore(useShallow(s => ({ setShowDevisForm: s.setShowDevisForm, setShowInvoiceForm: s.setShowInvoiceForm, setSelectedDevisId: s.setSelectedDevisId, setSelectedInvoiceId: s.setSelectedInvoiceId, setPage: s.setPage })));
+  const query = useApiQuery<DashboardData>('/api/dashboard');
+  const dashboardData = query.data;
+  if (!dashboardData) return <div className="space-y-4">
+    <h2 className="text-2xl font-bold">Tableau de bord</h2>
+    {query.error ? <><p role="alert">{query.error.message}</p><Button onClick={() => { void query.refetch(); }}>Réessayer</Button></> : <p role="status">Chargement…</p>}
+  </div>;
 
   const kpis = [
     { title: 'CA du mois', value: formatCurrency(dashboardData.currentMonthRevenue), icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },

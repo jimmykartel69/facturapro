@@ -4,18 +4,9 @@ import { db } from '@/lib/db';
 const SESSION_COOKIE = 'facturapro_session';
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
-export async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-
-  if (!token) return null;
-
-  const user = await db.user.findFirst({
-    where: {
-      sessionToken: token,
-      sessionExpiry: { gt: new Date() },
-    },
-    select: {
+const identitySelect = { id: true, email: true, name: true, firstName: true,
+  vatRegime: true, showCgv: true, cgvDeliveryMode: true } as const;
+const settingsSelect = {
       id: true,
       email: true,
       name: true,
@@ -71,7 +62,23 @@ export async function getCurrentUser() {
       insurancePolicyNumber: true,
       insuranceActivities: true,
       insuranceCoverageArea: true,
+    } as const;
+type Identity = import('@prisma/client').Prisma.UserGetPayload<{ select: typeof identitySelect }>;
+type CompanySettings = import('@prisma/client').Prisma.UserGetPayload<{ select: typeof settingsSelect }>;
+export function getCurrentUser(withSettings: true): Promise<CompanySettings | null>;
+export function getCurrentUser(withSettings?: false): Promise<Identity | null>;
+export async function getCurrentUser(withSettings = false) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+
+  if (!token) return null;
+
+  const user = await db.user.findFirst({
+    where: {
+      sessionToken: token,
+      sessionExpiry: { gt: new Date() },
     },
+    select: withSettings ? settingsSelect : identitySelect,
   });
 
   return user;

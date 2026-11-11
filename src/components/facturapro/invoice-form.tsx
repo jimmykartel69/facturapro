@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
@@ -144,6 +145,7 @@ export function InvoiceForm({ editingInvoiceId }: InvoiceFormProps) {
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{editingInvoiceId ? 'Modifier la facture' : 'Nouvelle facture'}</DialogTitle>
+          <DialogDescription className="sr-only">Renseignez les informations puis enregistrez vos modifications.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Client */}

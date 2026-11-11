@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
@@ -169,6 +170,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{editingDevisId ? 'Modifier le devis' : 'Nouveau devis'}</DialogTitle>
+          <DialogDescription className="sr-only">Renseignez les informations puis enregistrez vos modifications.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Client */}

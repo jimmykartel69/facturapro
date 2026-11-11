@@ -43,6 +43,7 @@ interface DevisDetailFull extends Devis {
 export function DevisDetail() {
   const {
     settings,
+    fetchSettings,
     selectedDevisId,
     setSelectedDevisId,
     updateDevisStatus,
@@ -50,6 +51,7 @@ export function DevisDetail() {
     convertDevisToInvoice,
     setEditingDevisId,
   } = useAppStore();
+  useEffect(() => { void fetchSettings(); }, [fetchSettings]);
   const storedDevis = useAppStore((state) => state.devis.find((entry) => entry.id === selectedDevisId));
   const [devis, setDevis] = useState<DevisDetailFull | null>(null);
   const [loading, setLoading] = useState(true);

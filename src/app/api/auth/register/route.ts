@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const passwordHash = hashPassword(password);
+    const passwordHash = await hashPassword(password);
     const sessionToken = generateSessionToken();
     const sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 

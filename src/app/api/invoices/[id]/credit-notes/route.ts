@@ -44,7 +44,7 @@ export async function GET(_request: NextRequest, { params }: Context) {
 
 export async function POST(request: NextRequest, { params }: Context) {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(true);
     if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     const { id } = await params;
     let body: unknown;

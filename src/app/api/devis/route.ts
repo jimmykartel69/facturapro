@@ -1,3 +1,4 @@
+import { parsePagination } from '@/lib/pagination';
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { getCurrentUser } from '@/lib/session';
@@ -13,6 +14,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
+    let pagination;
+    try { pagination = parsePagination(request.nextUrl.searchParams); }
+    catch { return NextResponse.json({ error: 'Page invalide' }, { status: 400 }); }
     const status = request.nextUrl.searchParams.get('status');
     const search = request.nextUrl.searchParams.get('search') || '';
 
@@ -31,7 +35,9 @@ export async function GET(request: NextRequest) {
 
     const devisList = await db.devis.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: pagination.skip,
+      take: pagination.take,
       include: {
         client: {
           select: { id: true, name: true, company: true },
@@ -39,7 +45,6 @@ export async function GET(request: NextRequest) {
         items: {
           select: {
             designation: true,
-            description: true,
             quantity: true,
             unit: true,
             unitPrice: true,
@@ -49,7 +54,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ devis: devisList });
+    return NextResponse.json({ devis: devisList.slice(0, pagination.pageSize),
+      pagination: { page: pagination.page, hasNext: devisList.length > pagination.pageSize } });
   } catch (error) {
     console.error('Devis GET error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

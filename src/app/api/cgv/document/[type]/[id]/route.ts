@@ -11,7 +11,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ type: string; id: string }> },
 ) {
-  const user = await getCurrentUser();
+  const user = await getCurrentUser(true);
   if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
   const { type, id } = await params;

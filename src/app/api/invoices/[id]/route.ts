@@ -5,7 +5,10 @@ import { getCurrentUser } from '@/lib/session';
 import { db } from '@/lib/db';
 import { canEditInvoiceDocument, isAllowedInvoiceTransition } from '@/lib/invoice-guards';
 import { makeInvoiceSnapshot } from '@/lib/invoice-archive';
-import { generateInvoicePDF } from '@/lib/pdf';
+async function generateInvoicePDF(...args: Parameters<typeof import('@/lib/pdf')['generateInvoicePDF']>) {
+  const pdf = await import('@/lib/pdf');
+  return pdf.generateInvoicePDF(...args);
+}
 
 const ALLOWED_INVOICE_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const;
 type InvoiceStatus = (typeof ALLOWED_INVOICE_STATUSES)[number];
@@ -129,7 +132,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(true);
     if (!user) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }

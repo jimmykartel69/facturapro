@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(true);
     if (!user) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
@@ -93,7 +93,7 @@ export async function PUT(request: NextRequest) {
     });
 
     // Return only whitelisted fields; never expose tokens or password hashes.
-    const safeSettings = await getCurrentUser();
+    const safeSettings = await getCurrentUser(true);
     return NextResponse.json({ settings: safeSettings });
   } catch (error) {
     console.error('Settings PUT error:', error);

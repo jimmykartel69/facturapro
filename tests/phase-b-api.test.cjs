@@ -11,7 +11,7 @@ function load(file, mocks = {}) {
   mod.filename = filename;
   mod.paths = Module._nodeModulePaths(path.dirname(filename));
   const orig = mod.require.bind(mod);
-  mod.require = (name) => Object.hasOwn(mocks, name) ? mocks[name] : orig(name);
+  mod.require = (name) => Object.hasOwn(mocks, name) ? mocks[name] : name.startsWith('@/lib/') ? load('src/lib/' + name.slice(6) + '.ts', mocks) : orig(name);
   mod._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText, filename);
