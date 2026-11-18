@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { siteReferenceSchema } from '@/lib/site-reference';
 import { parseBillingItems } from '@/lib/billing-input';
 import { resolveQuotePricing } from '@/lib/devis-pricing';
+import { ensureDocumentCgv } from '@/lib/pdf';
 import { canEditDevisIssueDate, parseDevisIssueDate } from '@/lib/devis-issue-date';
 
 export async function GET(
@@ -43,7 +44,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(true);
     if (!user) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
@@ -139,6 +140,13 @@ export async function PUT(
       } catch (error) {
         return NextResponse.json({ error: (error as Error).message }, { status: 400 });
       }
+    }
+
+    // Freeze the contractual CGV when a draft is first marked as sent.
+    if (body.status === 'sent' && existing.status === 'draft') {
+      const selectedClientId = body.clientId !== undefined ? String(body.clientId) : existing.clientId;
+      const client = await db.client.findFirst({ where: { id: selectedClientId, userId: user.id } });
+      if (client) await ensureDocumentCgv(user, client, 'devis', id);
     }
 
     const devis = await db.devis.update({
