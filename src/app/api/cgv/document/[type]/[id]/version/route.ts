@@ -55,6 +55,7 @@ export async function GET(_request: Request, { params }: Params) {
     current: current && {
       version: current.version.slice(0, 12),
       deliveryMode: current.deliveryMode,
+      clientType: current.clientType,
       createdAt: current.createdAt,
     },
     candidate: candidate && {
