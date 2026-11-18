@@ -1675,7 +1675,7 @@ export async function ensureDocumentCgv(
   documentId: string,
 ): Promise<CgvSnapshot | undefined> {
   if (!company.id || !documentId) return undefined;
-  const where = { userId: company.id, documentType, documentId, active: true };
+  const where = { userId: company.id, documentType, documentId };
   const existing = await db.cgvSnapshot.findFirst({ where });
   if (existing) return existing;
 
