@@ -239,8 +239,9 @@ model CreditNote {
   @@unique([userId, number])
 }
 
-// Immutable per-document CGV content. The public token only exposes terms,
-// never customer names, billing amounts or other document data.
+// The CGV text and public token are immutable, even when a draft document
+// explicitly selects a newer version. Only the current-version pointer changes.
+// A partial unique database index enforces one active version per document.
 model CgvSnapshot {
   id String @id @default(cuid())
   token String @unique @default(uuid())
@@ -251,10 +252,13 @@ model CgvSnapshot {
   companyName String
   content String @db.Text
   version String @db.VarChar(64)
+  deliveryMode String @default("qr")
+  active Boolean @default(true)
+  supersededAt DateTime?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([documentType, documentId])
+  @@index([documentType, documentId])
   @@index([userId])
 }
