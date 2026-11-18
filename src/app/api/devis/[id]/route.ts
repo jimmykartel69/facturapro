@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { siteReferenceSchema } from '@/lib/site-reference';
 import { parseBillingItems } from '@/lib/billing-input';
 import { resolveQuotePricing } from '@/lib/devis-pricing';
+import { canEditDevisIssueDate, parseDevisIssueDate } from '@/lib/devis-issue-date';
 
 export async function GET(
   request: NextRequest,
@@ -86,6 +87,26 @@ export async function PUT(
     if (body.validUntil !== undefined && Number.isNaN(new Date(body.validUntil).getTime())) {
       return NextResponse.json({ error: 'Date de validité invalide' }, { status: 400 });
     }
+    if (body.issueDate !== undefined && !canEditDevisIssueDate(existing.status)) {
+      return NextResponse.json(
+        { error: "La date d'émission ne peut être modifiée que sur un devis en brouillon." },
+        { status: 409 },
+      );
+    }
+    const requestedIssueDate = body.issueDate !== undefined ? parseDevisIssueDate(body.issueDate) : null;
+    if (body.issueDate !== undefined && !requestedIssueDate) {
+      return NextResponse.json({ error: "Date d'émission invalide (format AAAA-MM-JJ)." }, { status: 400 });
+    }
+    if (body.issueDate !== undefined || body.validUntil !== undefined) {
+      const resultingIssueDate = requestedIssueDate ?? existing.issueDate;
+      const resultingValidUntil = body.validUntil !== undefined ? new Date(body.validUntil) : existing.validUntil;
+      if (resultingIssueDate.toISOString().slice(0, 10) > resultingValidUntil.toISOString().slice(0, 10)) {
+        return NextResponse.json(
+          { error: "La date d'émission ne peut pas être postérieure à la date de validité." },
+          { status: 400 },
+        );
+      }
+    }
     if (body.globalDiscount !== undefined &&
         (!Number.isFinite(Number(body.globalDiscount)) ||
          Number(body.globalDiscount) < 0 || Number(body.globalDiscount) > 100)) {
@@ -121,8 +142,9 @@ export async function PUT(
     }
 
     const devis = await db.devis.update({
-      where: { id, userId: user.id, status: { not: 'converted' } },
+      where: { id, userId: user.id, status: body.issueDate !== undefined ? 'draft' : { not: 'converted' } },
       data: {
+        ...(requestedIssueDate && { issueDate: requestedIssueDate }),
         ...(body.clientId !== undefined && { clientId: body.clientId }),
         ...(body.status !== undefined && { status: body.status }),
         ...(body.validUntil !== undefined && { validUntil: new Date(body.validUntil) }),
