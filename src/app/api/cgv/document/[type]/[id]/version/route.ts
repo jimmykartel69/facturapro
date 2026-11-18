@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/session';
 import { buildCgvCandidate } from '@/lib/pdf';
+import { canRefreshDocumentCgv } from '@/lib/cgv-version-policy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,14 +17,14 @@ async function ownedDocument(type: DocType, id: string, userId: string) {
       where: { id, userId },
       include: { client: true },
     });
-    return doc ? { client: doc.client, editable: doc.status === 'draft', status: doc.status } : null;
+    return doc ? { client: doc.client, editable: canRefreshDocumentCgv('devis', doc.status), status: doc.status } : null;
   }
   const doc = await db.invoice.findFirst({
     where: { id, userId },
     include: { client: true, archive: { select: { invoiceId: true } } },
   });
   return doc
-    ? { client: doc.client, editable: doc.status === 'draft' && !doc.archive, status: doc.status }
+    ? { client: doc.client, editable: canRefreshDocumentCgv('invoice', doc.status, Boolean(doc.archive)), status: doc.status }
     : null;
 }
 
@@ -106,13 +107,13 @@ export async function POST(request: Request, { params }: Params) {
       // Recheck the persisted state in the same transaction as the update.
       if (type === 'devis') {
         const latest = await tx.devis.findFirst({ where: { id, userId: user.id }, select: { status: true } });
-        if (!latest || latest.status !== 'draft') throw new Error('DOCUMENT_LOCKED');
+        if (!latest || !canRefreshDocumentCgv('devis', latest.status)) throw new Error('DOCUMENT_LOCKED');
       } else {
         const latest = await tx.invoice.findFirst({
           where: { id, userId: user.id },
           include: { archive: { select: { invoiceId: true } } },
         });
-        if (!latest || latest.status !== 'draft' || latest.archive) throw new Error('DOCUMENT_LOCKED');
+        if (!latest || !canRefreshDocumentCgv('invoice', latest.status, Boolean(latest.archive))) throw new Error('DOCUMENT_LOCKED');
       }
 
       const current = await tx.cgvSnapshot.findFirst({
