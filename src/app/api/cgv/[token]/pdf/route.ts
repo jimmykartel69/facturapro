@@ -14,10 +14,13 @@ export async function GET(
     return NextResponse.json({ error: 'Lien invalide' }, { status: 404 });
   }
 
-  const snapshot = await db.cgvSnapshot.findUnique({
+  const snapshot = (await db.cgvSnapshot.findUnique({
     where: { token },
     select: { companyName: true, content: true, version: true, clientType: true },
-  });
+  })) ?? (await db.cgvSnapshotHistory.findUnique({
+    where: { token },
+    select: { companyName: true, content: true, version: true, clientType: true },
+  }));
   if (!snapshot) {
     return NextResponse.json({ error: 'CGV introuvables' }, { status: 404 });
   }

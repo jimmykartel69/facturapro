@@ -25,9 +25,9 @@ export async function GET(
 
   if (!document) return NextResponse.json({ error: 'Document introuvable' }, { status: 404 });
 
-  let snapshot = await db.cgvSnapshot.findUnique({
-    where: { documentType_documentId: { documentType: type, documentId: id } },
-    select: { token: true },
+  let snapshot = await db.cgvSnapshot.findFirst({
+    where: { documentType: type, documentId: id, userId: user.id },
+    select: { token: true, deliveryMode: true },
   });
 
   if (!snapshot) {
@@ -40,14 +40,18 @@ export async function GET(
     }
 
     await prepareCgvQr(user, document.client, type as 'devis' | 'invoice', id);
-    snapshot = await db.cgvSnapshot.findUnique({
-      where: { documentType_documentId: { documentType: type, documentId: id } },
-      select: { token: true },
+    snapshot = await db.cgvSnapshot.findFirst({
+      where: { documentType: type, documentId: id, userId: user.id },
+      select: { token: true, deliveryMode: true },
     });
   }
 
   if (!snapshot) {
     return NextResponse.json({ error: 'Aucune CGV applicable : vérifiez les paramètres CGV B2C/B2B.' }, { status: 422 });
+  }
+
+  if (snapshot.deliveryMode !== 'qr') {
+    return NextResponse.json({ error: 'Les CGV de ce document sont intégrées en annexe PDF.' }, { status: 409 });
   }
 
   return NextResponse.json({ downloadUrl: '/api/cgv/' + snapshot.token + '/pdf' }, {

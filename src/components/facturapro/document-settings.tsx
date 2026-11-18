@@ -97,6 +97,15 @@ export function DocumentSettingsPage() {
       return;
     }
 
+    const cgvChanged = settings && (
+      form.customCgvB2b.trim() !== (settings.customCgvB2b || '').trim() ||
+      form.customCgvB2c.trim() !== (settings.customCgvB2c || '').trim() ||
+      form.cgvDeliveryMode !== (settings.cgvDeliveryMode || 'annex') ||
+      form.mediatorName.trim() !== (settings.mediatorName || '').trim() ||
+      form.mediatorAddress.trim() !== (settings.mediatorAddress || '').trim() ||
+      form.mediatorWebsite.trim() !== (settings.mediatorWebsite || '').trim()
+    );
+
     setSaving(true);
     const error = await updateSettings({
       depositEnabled: form.depositEnabled,
@@ -127,7 +136,12 @@ export function DocumentSettingsPage() {
       return;
     }
 
-    toast({ title: 'Paramètres documents enregistrés' });
+    toast({
+      title: 'Paramètres documents enregistrés',
+      description: cgvChanged
+        ? 'Nouvelles CGV enregistrées. Les documents existants conservent leur version ; ouvrez un brouillon pour choisir de l’actualiser.'
+        : undefined,
+    });
   };
 
   if (!settings) {
@@ -190,7 +204,10 @@ export function DocumentSettingsPage() {
                 En mode QR : la version des CGV est archivée lors de la génération du document.
                 Téléchargez et transmettez séparément le PDF des CGV au client lorsque la loi
                 exige un support durable. Un QR code seul ne constitue pas une preuve de remise.
-                Les documents déjà émis conservent leur version archivée.
+                Chaque document conserve la version de CGV liée à son PDF, même en mode annexe.
+                Après une modification des CGV professionnels ou particuliers, ouvrez le brouillon concerné
+                pour choisir explicitement de conserver sa version ou d'appliquer les nouvelles CGV.
+                Les documents déjà émis restent verrouillés.
               </p>
             </div>
           )}
