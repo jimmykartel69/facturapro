@@ -126,9 +126,15 @@ export function CgvVersionChoice({
                 <Download className="mr-1.5 h-4 w-4" />Télécharger les CGV archivées
               </Button>
             )}
-            {data.current && !data.differs && (
+            {data.current && data.candidate && !data.differs && (
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CheckCircle2 className="h-4 w-4" />Le document utilise déjà les CGV actuellement configurées.
+              </p>
+            )}
+            {data.current && !data.candidate && (
+              <p className="text-xs text-muted-foreground">
+                Les CGV sont désactivées ou non configurées pour ce type de client.
+                La version déjà enregistrée sur ce document reste conservée.
               </p>
             )}
             {data.editable && data.differs && data.candidate && (
