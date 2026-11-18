@@ -39,7 +39,7 @@ export async function GET(_request: Request, { params }: Params) {
   if (!doc) return NextResponse.json({ error: 'Document introuvable' }, { status: 404 });
 
   const current = await db.cgvSnapshot.findFirst({
-    where: { documentType: type, documentId: id, userId: user.id, active: true },
+    where: { documentType: type, documentId: id, userId: user.id },
     select: { version: true, deliveryMode: true, clientType: true, createdAt: true },
   });
   const candidate = buildCgvCandidate(user, doc.client);
@@ -117,7 +117,7 @@ export async function POST(request: Request, { params }: Params) {
       }
 
       const current = await tx.cgvSnapshot.findFirst({
-        where: { documentType: type, documentId: id, userId: user.id, active: true },
+        where: { documentType: type, documentId: id, userId: user.id },
       });
       if (current?.version === candidate.version && current.deliveryMode === candidate.deliveryMode
         && current.clientType === candidate.clientType) {
