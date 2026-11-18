@@ -142,8 +142,8 @@ export async function PUT(
       }
     }
 
-    // Freeze the contractual CGV when a draft is first marked as sent.
-    if (body.status === 'sent' && existing.status === 'draft') {
+    // Freeze the contractual CGV on the first transition out of draft.
+    if (body.status !== undefined && body.status !== 'draft' && existing.status === 'draft') {
       const selectedClientId = body.clientId !== undefined ? String(body.clientId) : existing.clientId;
       const client = await db.client.findFirst({ where: { id: selectedClientId, userId: user.id } });
       if (client) await ensureDocumentCgv(user, client, 'devis', id);
