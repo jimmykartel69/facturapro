@@ -70,6 +70,26 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // A converted invoice inherits the CGV version agreed with the quote
+      // whenever that version has already been archived.
+      const quoteCgv = await tx.cgvSnapshot.findFirst({
+        where: { userId: user.id, documentType: 'devis', documentId: devis.id, active: true },
+      });
+      if (quoteCgv) {
+        await tx.cgvSnapshot.create({
+          data: {
+            userId: user.id,
+            documentType: 'invoice',
+            documentId: created.id,
+            clientType: quoteCgv.clientType,
+            companyName: quoteCgv.companyName,
+            content: quoteCgv.content,
+            version: quoteCgv.version,
+            deliveryMode: quoteCgv.deliveryMode,
+          },
+        });
+      }
+
       await tx.devis.update({
         where: { id: devis.id },
         data: { status: 'converted' },
