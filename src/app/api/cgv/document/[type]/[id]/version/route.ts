@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/session';
 import { buildCgvCandidate } from '@/lib/pdf';
@@ -124,10 +125,27 @@ export async function POST(request: Request, { params }: Params) {
         return { changed: false, version: current.version.slice(0, 12) };
       }
       if (current) {
-        await tx.cgvSnapshot.update({
-          where: { id: current.id },
-          data: { active: false, supersededAt: new Date() },
+        // Copy the entire old snapshot without changing its contractual content.
+        // Its old QR token remains resolvable through the history endpoint.
+        await tx.cgvSnapshotHistory.create({
+          data: {
+            token: current.token,
+            userId: current.userId,
+            documentType: current.documentType,
+            documentId: current.documentId,
+            clientType: current.clientType,
+            companyName: current.companyName,
+            content: current.content,
+            version: current.version,
+            deliveryMode: current.deliveryMode,
+            createdAt: current.createdAt,
+          },
         });
+        const updated = await tx.cgvSnapshot.update({
+          where: { id: current.id },
+          data: { ...candidate, token: randomUUID(), createdAt: new Date() },
+        });
+        return { changed: true, version: updated.version.slice(0, 12) };
       }
       const created = await tx.cgvSnapshot.create({
         data: { ...candidate, documentType: type, documentId: id },
