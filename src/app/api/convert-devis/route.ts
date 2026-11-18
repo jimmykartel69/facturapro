@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       // A converted invoice inherits the CGV version agreed with the quote
       // whenever that version has already been archived.
       const quoteCgv = await tx.cgvSnapshot.findFirst({
-        where: { userId: user.id, documentType: 'devis', documentId: devis.id, active: true },
+        where: { userId: user.id, documentType: 'devis', documentId: devis.id },
       });
       if (quoteCgv) {
         await tx.cgvSnapshot.create({
