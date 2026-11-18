@@ -26,7 +26,7 @@ export async function GET(
   if (!document) return NextResponse.json({ error: 'Document introuvable' }, { status: 404 });
 
   let snapshot = await db.cgvSnapshot.findFirst({
-    where: { documentType: type, documentId: id, userId: user.id, active: true },
+    where: { documentType: type, documentId: id, userId: user.id },
     select: { token: true, deliveryMode: true },
   });
 
@@ -41,7 +41,7 @@ export async function GET(
 
     await prepareCgvQr(user, document.client, type as 'devis' | 'invoice', id);
     snapshot = await db.cgvSnapshot.findFirst({
-      where: { documentType: type, documentId: id, userId: user.id, active: true },
+      where: { documentType: type, documentId: id, userId: user.id },
       select: { token: true, deliveryMode: true },
     });
   }
