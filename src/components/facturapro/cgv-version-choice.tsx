@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 type DocType = 'devis' | 'invoice';
-type Version = { version: string; deliveryMode: string; createdAt?: string };
+type Version = { version: string; deliveryMode: string; clientType?: string; createdAt?: string };
 type State = {
   editable: boolean;
   current: Version | null;
@@ -96,6 +96,7 @@ export function CgvVersionChoice({
 
   const mode = (value?: string) => value === 'qr' ? 'QR code + PDF téléchargeable' : 'Annexe intégrée au PDF';
   const audience = data?.clientType === 'consumer' ? 'Particuliers' : 'Professionnels';
+  const savedAudience = data?.current?.clientType === 'consumer' ? 'Particuliers' : 'Professionnels';
 
   return (
     <Card>
@@ -109,7 +110,7 @@ export function CgvVersionChoice({
           <>
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="rounded-md border p-3">
-                <p className="text-xs text-muted-foreground">Version liée au document — {audience}</p>
+                <p className="text-xs text-muted-foreground">Version liée au document — {data.current ? savedAudience : audience}</p>
                 <p className="font-medium">{data.current ? `Version ${data.current.version}` : 'Aucune version encore figée'}</p>
                 {data.current && <p className="mt-1 text-xs text-muted-foreground">{mode(data.current.deliveryMode)}</p>}
               </div>
