@@ -100,6 +100,11 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
   const [validUntil, setValidUntil] = useState(
     () => existing?.validUntil ? existing.validUntil.split('T')[0] : d.toISOString().split('T')[0]
   );
+  const [issueDate, setIssueDate] = useState(() => existing?.issueDate?.split('T')[0] || '');
+  const canEditIssueDate = existing?.status === 'draft';
+  const issueDateInvalid = Boolean(
+    editingDevisId && canEditIssueDate && (!issueDate || (validUntil && issueDate > validUntil))
+  );
   const [loading, setLoading] = useState(false);
 
   const updateItem = (index: number, field: keyof DevisItem, value: string | number) => {
@@ -135,7 +140,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientId || items.length === 0 || targetInvalid) return;
+    if (!clientId || items.length === 0 || targetInvalid || issueDateInvalid) return;
     setLoading(true);
     const data = {
       clientId,
@@ -152,6 +157,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
       globalDiscount: effectiveDiscount,
       targetTotalTtc,
       showEarlyExecutionRequest,
+      ...(editingDevisId && canEditIssueDate ? { issueDate } : {}),
       validUntil: validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     };
     let err: string | null;
@@ -409,6 +415,25 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
           {/* Date + Notes */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
+              {editingDevisId && (
+                <div className="space-y-1 pb-2">
+                  <Label htmlFor="devis-issue-date">Date d&apos;émission</Label>
+                  <Input
+                    id="devis-issue-date"
+                    type="date"
+                    value={issueDate}
+                    onChange={(e) => setIssueDate(e.target.value)}
+                    disabled={!canEditIssueDate}
+                    aria-invalid={issueDateInvalid}
+                    required={canEditIssueDate}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {canEditIssueDate
+                      ? 'Modifiable tant que le devis est en brouillon. La date est reprise sur le PDF.'
+                      : 'Date verrouillée après émission du devis. Établissez une révision si nécessaire.'}
+                  </p>
+                </div>
+              )}
               <Label htmlFor="devis-valid">Valide jusqu&apos;au</Label>
               <Input
                 id="devis-valid"
@@ -417,6 +442,11 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
                 onChange={(e) => setValidUntil(e.target.value)}
                 required
               />
+              {issueDateInvalid && (
+                <p role="alert" className="text-xs text-destructive">
+                  La date d&apos;émission est obligatoire et ne peut pas dépasser la date de validité.
+                </p>
+              )}
               <div className="mt-3 rounded-lg border p-3 space-y-2">
                 <label className="flex cursor-pointer items-start gap-2 text-sm font-medium">
                   <Checkbox
@@ -465,7 +495,7 @@ export function DevisForm({ editingDevisId }: DevisFormProps) {
             <Button type="button" variant="outline" onClick={() => setShowDevisForm(false)}>
               Annuler
             </Button>
-            <Button type="submit" disabled={loading || !clientId || items.length === 0 || targetInvalid}>
+            <Button type="submit" disabled={loading || !clientId || items.length === 0 || targetInvalid || issueDateInvalid}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editingDevisId ? 'Mettre à jour' : 'Créer le devis'}
             </Button>
