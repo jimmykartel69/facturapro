@@ -14,10 +14,13 @@ export default async function CgvPublicPage({
   const { token } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(token)) notFound();
 
-  const snapshot = await db.cgvSnapshot.findUnique({
+  const snapshot = (await db.cgvSnapshot.findUnique({
     where: { token },
     select: { companyName: true, clientType: true, content: true, version: true, createdAt: true },
-  });
+  })) ?? (await db.cgvSnapshotHistory.findUnique({
+    where: { token },
+    select: { companyName: true, clientType: true, content: true, version: true, createdAt: true },
+  }));
   if (!snapshot) notFound();
 
   const type = snapshot.clientType === 'business' ? 'professionnels' : 'particuliers';
