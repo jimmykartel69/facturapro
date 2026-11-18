@@ -86,6 +86,7 @@ model User {
   invoiceArchives InvoiceArchive[]
   creditNotes CreditNote[]
   cgvSnapshots CgvSnapshot[]
+  cgvSnapshotHistories CgvSnapshotHistory[]
 }
 
 model Client {
@@ -239,9 +240,8 @@ model CreditNote {
   @@unique([userId, number])
 }
 
-// The CGV text and public token are immutable, even when a draft document
-// explicitly selects a newer version. Only the current-version pointer changes.
-// A partial unique database index enforces one active version per document.
+// The currently linked CGV version for each document. Its previous values are
+// copied verbatim to immutable CgvSnapshotHistory rows on explicit refresh.
 model CgvSnapshot {
   id String @id @default(cuid())
   token String @unique @default(uuid())
@@ -253,9 +253,29 @@ model CgvSnapshot {
   content String @db.Text
   version String @db.VarChar(64)
   deliveryMode String @default("qr")
-  active Boolean @default(true)
-  supersededAt DateTime?
   createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentType, documentId])
+  @@index([userId])
+}
+
+// Immutable historical CGV copies. Tokens from previously supplied PDFs
+// continue to resolve even after a draft chooses a newer version.
+model CgvSnapshotHistory {
+  id String @id @default(cuid())
+  token String @unique
+  userId String
+  documentType String
+  documentId String
+  clientType String
+  companyName String
+  content String @db.Text
+  version String @db.VarChar(64)
+  deliveryMode String
+  createdAt DateTime
+  supersededAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
