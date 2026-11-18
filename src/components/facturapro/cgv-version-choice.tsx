@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, FileClock, Loader2, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Download, FileClock, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -58,6 +58,21 @@ export function CgvVersionChoice({
     void fetchVersion();
   }, [fetchVersion]);
 
+  const downloadCgv = async () => {
+    setWorking(true);
+    setFeedback(null);
+    try {
+      const response = await fetch(`/api/cgv/document/${type}/${documentId}`, { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok || !payload.downloadUrl) throw new Error(payload.error || 'CGV indisponibles.');
+      window.location.assign(payload.downloadUrl);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'CGV indisponibles.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
   const choose = async (action: 'keep' | 'refresh') => {
     setWorking(true);
     setFeedback(null);
@@ -106,6 +121,11 @@ export function CgvVersionChoice({
             </div>
 
             {data.message && <p className="text-xs text-amber-700">{data.message}</p>}
+            {data.current?.deliveryMode === 'qr' && (
+              <Button variant="outline" size="sm" disabled={working} onClick={() => void downloadCgv()}>
+                <Download className="mr-1.5 h-4 w-4" />Télécharger les CGV archivées
+              </Button>
+            )}
             {data.current && !data.differs && (
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CheckCircle2 className="h-4 w-4" />Le document utilise déjà les CGV actuellement configurées.
